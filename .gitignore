@@ -1,0 +1,10 @@
+.env
+!.env.example
+*.csv
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+service_account.json
+
