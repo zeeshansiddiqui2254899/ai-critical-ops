@@ -128,6 +128,7 @@ def fetch_jira_issues_last_days(
                     "description": fields.get("description") or "",
                     "feature": fields.get(feature_field_id, "Unknown"),
                     "error_type": fields.get(error_field_id, "Unknown"),
+                    "status": (fields.get("status", {}) or {}).get("name", "Unknown") if isinstance(fields.get("status"), dict) else (fields.get("status") or "Unknown"),
                     "created": fields.get("created", ""),
                     "updated": fields.get("updated", ""),
                 }
@@ -154,7 +155,7 @@ def fetch_jira_issues_last_days(
             "jql": jql,
             "startAt": start_at,
             "maxResults": batch_size,
-            "fields": f"summary,description,created,updated,{feature_field_id},{error_field_id}",
+            "fields": f"summary,description,status,created,updated,{feature_field_id},{error_field_id}",
         }
         resp = requests.get(url_get, params=params, headers=headers, auth=auth)
         if resp.status_code != 200:
@@ -173,6 +174,7 @@ def fetch_jira_issues_last_days(
                     "description": fields.get("description") or "",
                     "feature": fields.get(feature_field_id, "Unknown"),
                     "error_type": fields.get(error_field_id, "Unknown"),
+                    "status": (fields.get("status", {}) or {}).get("name", "Unknown") if isinstance(fields.get("status"), dict) else (fields.get("status") or "Unknown"),
                     "created": fields.get("created", ""),
                     "updated": fields.get("updated", ""),
                 }
@@ -211,7 +213,7 @@ def fetch_jira_issues_last_days(
                         "jql": f"created >= -{days}d ORDER BY created DESC",
                         "startAt": start_at,
                         "maxResults": batch_size,
-                        "fields": f"summary,description,created,updated,{feature_field_id},{error_field_id}",
+                        "fields": f"summary,description,status,created,updated,{feature_field_id},{error_field_id}",
                     }
                     resp = requests.get(issues_url, params=params, headers={"Accept": "application/json"}, auth=(email, token))
                     if resp.status_code != 200:
@@ -230,6 +232,7 @@ def fetch_jira_issues_last_days(
                                 "description": fields.get("description") or "",
                                 "feature": fields.get(feature_field_id, "Unknown"),
                                 "error_type": fields.get(error_field_id, "Unknown"),
+                                "status": (fields.get("status", {}) or {}).get("name", "Unknown") if isinstance(fields.get("status"), dict) else (fields.get("status") or "Unknown"),
                                 "created": fields.get("created", ""),
                                 "updated": fields.get("updated", ""),
                             }
@@ -457,6 +460,9 @@ def main() -> None:
             temperature=0.2,
         )
         summary = resp.choices[0].message.content.strip()
+        # Plain text list of all example ids (no hyperlink)
+        example_link = ", ".join([str(x) for x in group["id"].astype(str).tolist()])
+
         rows.append(
             {
                 "cluster_id": cid,
@@ -464,10 +470,8 @@ def main() -> None:
                 "feature": (group["feature"].mode()[0] if not group["feature"].isna().all() else "Unknown"),
                 "error_type": (group["error_type"].mode()[0] if not group["error_type"].isna().all() else "Unknown"),
                 "total_tickets": int(len(group)),
-                "example_ids": ", ".join(group["id"].astype(str).tolist()),
-                "first_seen": now,
-                "last_seen": now,
-                "status": "Open",
+                "example_ids": example_link,
+                "status": (group["status"].mode()[0] if "status" in group and not group["status"].isna().all() else "Unknown"),
             }
         )
 
@@ -476,7 +480,7 @@ def main() -> None:
     # Step 5: Write to Google Sheet (replace)
     sheet.clear()
     if len(out_df) == 0:
-        sheet.append_row(["cluster_id", "recurring_summary", "feature", "error_type", "total_tickets", "example_ids", "first_seen", "last_seen", "status"])
+        sheet.append_row(["cluster_id", "recurring_summary", "feature", "error_type", "total_tickets", "example_ids", "status"])
     else:
         sheet.append_row(out_df.columns.tolist())
         sheet.append_rows(out_df.values.tolist())

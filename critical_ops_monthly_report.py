@@ -125,7 +125,7 @@ if board_id is None:
     raise SystemExit("No board found for project")
 
 issues_url = (JIRA_BASE_URL or JIRA_HOST).rstrip("/") + f"/rest/agile/1.0/board/{board_id}/issue"
-fields_list = ["summary", "description", "priority", "customfield_10015", "customfield_10016"]
+fields_list = ["summary", "description", "priority", "status", "customfield_10015", "customfield_10016"]
 if completion_field_id:
     fields_list.append(completion_field_id)
 
@@ -162,6 +162,7 @@ while remaining > 0:
             "error_type": coerce_option(f.get("customfield_10016", "Unknown")),
             "priority": (f.get("priority", {}) or {}).get("name", "Unknown") if isinstance(f.get("priority"), dict) else (f.get("priority") or "Unknown"),
             "completion_date": completion_date,
+            "status": (f.get("status", {}) or {}).get("name", "Unknown") if isinstance(f.get("status"), dict) else (f.get("status") or "Unknown"),
         })
     got = len(arr)
     start_at += got
@@ -192,7 +193,7 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
         except gspread.exceptions.WorksheetNotFound:
             worksheet = sh.add_worksheet(title=tab_name, rows="1000", cols="20")
         worksheet.clear()
-        worksheet.append_row(["Cluster ID","Recurring Summary (AI Root Cause)","Feature","Error Type","Priority","Total Tickets","Example Ticket IDs","First Seen","Last Seen","Avg Age (Days)","Status (AI)","Resolution Suggestion","Create Date"])
+        worksheet.append_row(["Cluster ID","Recurring Summary (AI Root Cause)","Crux","Feature","Error Type","Priority","Total Tickets","Example Ticket IDs","Avg Age (Days)","Status","Resolution Suggestion","Create Date"])
         return
 
     df_month = df_month.copy()
@@ -221,13 +222,17 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
         res = client.embeddings.create(input=text, model="text-embedding-3-small")
         return res.data[0].embedding
 
-    df_month["embedding"] = df_month["normalized"].apply(get_embedding)
-    emb = np.vstack(df_month["embedding"])
-    sim = cosine_similarity(emb)
-    dist = 1 - sim
-    model = AgglomerativeClustering(metric='precomputed', linkage='average', distance_threshold=0.4, n_clusters=None)
-    labels = model.fit_predict(dist)
-    df_month["cluster_id"] = labels
+    if len(df_month) < 2:
+        df_month["embedding"] = [np.zeros((1,)) for _ in range(len(df_month))]
+        df_month["cluster_id"] = 0
+    else:
+        df_month["embedding"] = df_month["normalized"].apply(get_embedding)
+        emb = np.vstack(df_month["embedding"])
+        sim = cosine_similarity(emb)
+        dist = 1 - sim
+        model = AgglomerativeClustering(metric='precomputed', linkage='average', distance_threshold=0.4, n_clusters=None)
+        labels = model.fit_predict(dist)
+        df_month["cluster_id"] = labels
 
     summaries = []
     for cid, group in df_month.groupby("cluster_id"):
@@ -244,30 +249,41 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
         """
         try:
             resp = client.chat.completions.create(model=CHAT_MODEL, messages=[{"role": "user", "content": prompt}], temperature=0.2)
-            output = resp.choices[0].message.content.strip().split("Resolution Suggestion:")
-            root_cause = output[0].replace("Root Cause:", "").strip()
-            resolution = output[1].strip() if len(output) > 1 else "N/A"
+            root_cause = resp.choices[0].message.content.strip()
         except Exception as e:
-            root_cause, resolution = "AI summary failed", str(e)
+            root_cause = f"Summary unavailable: {e}"
 
-        first_seen = pd.to_datetime(group["completion_date"], utc=True).min().strftime("%Y-%m-%d")
-        last_seen = pd.to_datetime(group["completion_date"], utc=True).max().strftime("%Y-%m-%d")
+        # concise crux 5–10 words
+        try:
+            crux_prompt = (
+                "From this summary, extract a concise 5–10 word crux capturing the main failure and cause. "
+                "Return only the phrase.\n\n" + root_cause
+            )
+            crux_resp = client.chat.completions.create(
+                model=CHAT_MODEL,
+                messages=[{"role": "user", "content": crux_prompt}],
+                temperature=0,
+            )
+            crux = crux_resp.choices[0].message.content.strip()
+        except Exception:
+            crux = "Concise crux not available"
+
         avg_age_days = (pd.Timestamp.now(tz="UTC") - pd.to_datetime(group["completion_date"], utc=True).mean()).days
         create_date = pd.to_datetime(group["completion_date"], utc=True).min().strftime("%Y-%m-%d")
+        example_link = ", "; example_link = ", ".join([str(x) for x in group["id"].tolist()[:5]])
 
         summaries.append({
             "Cluster ID": cid,
             "Recurring Summary (AI Root Cause)": root_cause,
+            "Crux": crux,
             "Feature": group["feature"].mode()[0] if not group["feature"].isna().all() else "Unknown",
             "Error Type": group["error_type"].mode()[0] if not group["error_type"].isna().all() else "Unknown",
             "Priority": group["priority"].mode()[0] if not group["priority"].isna().all() else "Unknown",
             "Total Tickets": len(group),
-            "Example Ticket IDs": ", ".join(group["id"].tolist()[:5]),
-            "First Seen": first_seen,
-            "Last Seen": last_seen,
+            "Example Ticket IDs": example_link,
             "Avg Age (Days)": avg_age_days,
-            "Status (AI)": "Recurring" if len(group) > 2 else "Isolated",
-            "Resolution Suggestion": resolution,
+            "Status": group["status"].mode()[0] if "status" in group and not group["status"].isna().all() else "Unknown",
+            "Resolution Suggestion": "See summary",
             "Create Date": create_date,
         })
 

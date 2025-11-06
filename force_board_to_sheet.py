@@ -99,7 +99,7 @@ def main() -> None:
                 "jql": f"created >= -{days}d ORDER BY created DESC",
                 "startAt": start_at,
                 "maxResults": batch,
-                "fields": f"summary,description,created,updated,{feature_field_id},{error_field_id}",
+            "fields": f"summary,description,created,updated,status,{feature_field_id},{error_field_id}",
             },
             headers={"Accept": "application/json"},
             auth=(email, token),
@@ -120,6 +120,7 @@ def main() -> None:
                     "error_type": f.get(error_field_id, "Unknown"),
                     "created": f.get("created", ""),
                     "updated": f.get("updated", ""),
+                    "status": (f.get("status", {}) or {}).get("name", "Unknown") if isinstance(f.get("status"), dict) else (f.get("status") or "Unknown"),
                 }
             )
         got = len(arr)
@@ -216,17 +217,33 @@ def main() -> None:
             temperature=0.2,
         )
         summary = resp.choices[0].message.content.strip()
+        # Build concise crux (5–10 words)
+        try:
+            crux_prompt = (
+                "From this summary, extract a concise 5–10 word crux capturing the main failure and cause. "
+                "Return only the phrase.\n\n" + summary
+            )
+            crux_resp = client.chat.completions.create(
+                model=chat_model,
+                messages=[{"role": "user", "content": crux_prompt}],
+                temperature=0,
+            )
+            crux = crux_resp.choices[0].message.content.strip()
+        except Exception:
+            crux = "Concise crux not available"
+        # Plain text list of all example ids (no hyperlink)
+        example_link = ", ".join([str(x) for x in group["id"].astype(str).tolist()])
+
         rows.append(
             {
                 "cluster_id": cid,
                 "recurring_summary": summary,
+                "Crux": crux,
                 "feature": (group["feature"].mode(dropna=True).astype(str).iloc[0] if "feature" in group and not group["feature"].isna().all() else "Unknown"),
                 "error_type": (group["error_type"].mode(dropna=True).astype(str).iloc[0] if "error_type" in group and not group["error_type"].isna().all() else "Unknown"),
                 "total_tickets": int(len(group)),
-                "example_ids": ", ".join(group["id"].astype(str).tolist()),
-                "first_seen": now,
-                "last_seen": now,
-                "status": "Open",
+                "example_ids": example_link,
+                "status": (group["status"].mode(dropna=True).astype(str).iloc[0] if "status" in group and not group["status"].isna().all() else "Unknown"),
             }
         )
 
@@ -240,7 +257,8 @@ def main() -> None:
     sheet = gc.open_by_key(sheet_id).sheet1
     sheet.clear()
     sheet.append_row(out_df.columns.tolist())
-    sheet.append_rows(out_df.values.tolist())
+    if len(out_df) > 0:
+        sheet.append_rows(out_df.values.tolist(), value_input_option='USER_ENTERED')
     print(f"✅ Wrote {len(out_df)} clusters to Google Sheet")
 
 
