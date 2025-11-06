@@ -266,6 +266,40 @@ def normalize_text(text: str) -> str:
     return t
 
 
+def coerce_text(value: Any) -> str:
+    """Coerce Jira field (which may be str/dict/PropertyHolder) to plain text."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    # PropertyHolder from jira library can stringify, but try to extract body if present
+    try:
+        if hasattr(value, "body"):
+            body = getattr(value, "body")
+            return body if isinstance(body, str) else str(body or "")
+        if isinstance(value, dict):
+            # Attempt to flatten Atlassian Document Format by collecting text fields
+            def walk(node):
+                parts = []
+                if isinstance(node, dict):
+                    txt = node.get("text")
+                    if isinstance(txt, str):
+                        parts.append(txt)
+                    for k in ("content", "paragraphs", "items", "children"):
+                        if k in node:
+                            parts.append(walk(node[k]))
+                elif isinstance(node, list):
+                    for item in node:
+                        parts.append(walk(item))
+                return " ".join([p for p in parts if p])
+            flattened = walk(value)
+            if flattened:
+                return flattened
+        return str(value)
+    except Exception:
+        return str(value)
+
+
 def classify_feature_error(client: OpenAI, model: str, text: str, feature_labels: List[str] = None, error_labels: List[str] = None) -> Dict[str, str]:
     constraint = ""
     if feature_labels:
@@ -401,8 +435,16 @@ def main() -> None:
         return
 
     df = pd.DataFrame(issues)
-    df["description"] = df["description"].fillna("")
-    df["combined"] = df["summary"].fillna("") + "\n" + df["description"]
+    # Ensure text fields are strings (Jira may return complex objects)
+    if "summary" in df.columns:
+        df["summary"] = df["summary"].apply(coerce_text).fillna("")
+    else:
+        df["summary"] = ""
+    if "description" in df.columns:
+        df["description"] = df["description"].apply(coerce_text).fillna("")
+    else:
+        df["description"] = ""
+    df["combined"] = df["summary"] + "\n" + df["description"]
     df["normalized"] = df["combined"].apply(normalize_text)
 
     # Step 2: AI classification (per-issue)
