@@ -35,6 +35,16 @@ creds = Credentials.from_service_account_file(
 gc = gspread.authorize(creds)
 sh = gc.open_by_key(SHEET_ID)
 
+# Log the service account email for troubleshooting permissions
+try:
+    import json as _json
+    with open("service_account.json", "r") as _f:
+        _sa = _json.load(_f) or {}
+        _email = _sa.get("client_email", "")
+        print(f"Using Google service account: {_email}")
+except Exception:
+    pass
+
 # -----------------------------
 # Helper: resolve field id by display name (case-insensitive)
 # -----------------------------

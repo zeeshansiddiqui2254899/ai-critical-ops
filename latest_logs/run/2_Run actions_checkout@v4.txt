@@ -1,0 +1,69 @@
+﻿2025-11-07T11:25:27.5794393Z ##[group]Run actions/checkout@v4
+2025-11-07T11:25:27.5795241Z with:
+2025-11-07T11:25:27.5795882Z   repository: zeeshansiddiqui2254899/ai-critical-ops
+2025-11-07T11:25:27.5796733Z   token: ***
+2025-11-07T11:25:27.5797544Z   ssh-strict: true
+2025-11-07T11:25:27.5798052Z   ssh-user: git
+2025-11-07T11:25:27.5798526Z   persist-credentials: true
+2025-11-07T11:25:27.5799099Z   clean: true
+2025-11-07T11:25:27.5799587Z   sparse-checkout-cone-mode: true
+2025-11-07T11:25:27.5800153Z   fetch-depth: 1
+2025-11-07T11:25:27.5800656Z   fetch-tags: false
+2025-11-07T11:25:27.5801125Z   show-progress: true
+2025-11-07T11:25:27.5801617Z   lfs: false
+2025-11-07T11:25:27.5802061Z   submodules: false
+2025-11-07T11:25:27.5802523Z   set-safe-directory: true
+2025-11-07T11:25:27.5803400Z ##[endgroup]
+2025-11-07T11:25:27.6784671Z Syncing repository: zeeshansiddiqui2254899/ai-critical-ops
+2025-11-07T11:25:27.6786687Z ##[group]Getting Git version info
+2025-11-07T11:25:27.6788030Z Working directory is '/home/runner/work/ai-critical-ops/ai-critical-ops'
+2025-11-07T11:25:27.6789397Z [command]/usr/bin/git version
+2025-11-07T11:25:27.6836002Z git version 2.51.2
+2025-11-07T11:25:27.6860079Z ##[endgroup]
+2025-11-07T11:25:27.6872112Z Temporarily overriding HOME='/home/runner/work/_temp/2a42d9de-b6b5-4403-b541-374a157705d5' before making global git config changes
+2025-11-07T11:25:27.6873472Z Adding repository directory to the temporary git global config as a safe directory
+2025-11-07T11:25:27.6877009Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/ai-critical-ops/ai-critical-ops
+2025-11-07T11:25:27.6907435Z Deleting the contents of '/home/runner/work/ai-critical-ops/ai-critical-ops'
+2025-11-07T11:25:27.6910325Z ##[group]Initializing the repository
+2025-11-07T11:25:27.6913755Z [command]/usr/bin/git init /home/runner/work/ai-critical-ops/ai-critical-ops
+2025-11-07T11:25:27.6995546Z hint: Using 'master' as the name for the initial branch. This default branch name
+2025-11-07T11:25:27.6996554Z hint: is subject to change. To configure the initial branch name to use in all
+2025-11-07T11:25:27.6997688Z hint: of your new repositories, which will suppress this warning, call:
+2025-11-07T11:25:27.6998683Z hint:
+2025-11-07T11:25:27.6999579Z hint: 	git config --global init.defaultBranch <name>
+2025-11-07T11:25:27.7000246Z hint:
+2025-11-07T11:25:27.7000848Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2025-11-07T11:25:27.7001735Z hint: 'development'. The just-created branch can be renamed via this command:
+2025-11-07T11:25:27.7002546Z hint:
+2025-11-07T11:25:27.7003097Z hint: 	git branch -m <name>
+2025-11-07T11:25:27.7003925Z hint:
+2025-11-07T11:25:27.7004690Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2025-11-07T11:25:27.7005716Z Initialized empty Git repository in /home/runner/work/ai-critical-ops/ai-critical-ops/.git/
+2025-11-07T11:25:27.7009657Z [command]/usr/bin/git remote add origin https://github.com/zeeshansiddiqui2254899/ai-critical-ops
+2025-11-07T11:25:27.7034644Z ##[endgroup]
+2025-11-07T11:25:27.7035538Z ##[group]Disabling automatic garbage collection
+2025-11-07T11:25:27.7038214Z [command]/usr/bin/git config --local gc.auto 0
+2025-11-07T11:25:27.7059095Z ##[endgroup]
+2025-11-07T11:25:27.7059911Z ##[group]Setting up auth
+2025-11-07T11:25:27.7064737Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-11-07T11:25:27.7185345Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-11-07T11:25:27.7350803Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-11-07T11:25:27.7374750Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-11-07T11:25:27.7538218Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2025-11-07T11:25:27.7565664Z ##[endgroup]
+2025-11-07T11:25:27.7566848Z ##[group]Fetching the repository
+2025-11-07T11:25:27.7574591Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +25b95e3b929392f9b6b826ccbbfe0ccb9a7ae290:refs/remotes/origin/main
+2025-11-07T11:25:28.3040636Z From https://github.com/zeeshansiddiqui2254899/ai-critical-ops
+2025-11-07T11:25:28.3042050Z  * [new ref]         25b95e3b929392f9b6b826ccbbfe0ccb9a7ae290 -> origin/main
+2025-11-07T11:25:28.3063960Z ##[endgroup]
+2025-11-07T11:25:28.3064672Z ##[group]Determining the checkout info
+2025-11-07T11:25:28.3065698Z ##[endgroup]
+2025-11-07T11:25:28.3070474Z [command]/usr/bin/git sparse-checkout disable
+2025-11-07T11:25:28.3100841Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2025-11-07T11:25:28.3121955Z ##[group]Checking out the ref
+2025-11-07T11:25:28.3124681Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2025-11-07T11:25:28.3165317Z Switched to a new branch 'main'
+2025-11-07T11:25:28.3166315Z branch 'main' set up to track 'origin/main'.
+2025-11-07T11:25:28.3170982Z ##[endgroup]
+2025-11-07T11:25:28.3199487Z [command]/usr/bin/git log -1 --format=%H
+2025-11-07T11:25:28.3215927Z 25b95e3b929392f9b6b826ccbbfe0ccb9a7ae290

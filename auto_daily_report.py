@@ -362,6 +362,14 @@ def main() -> None:
         "service_account.json",
         scopes=["https://www.googleapis.com/auth/spreadsheets"],
     )
+    try:
+        import json as _json
+        with open("service_account.json", "r") as _f:
+            _sa = _json.load(_f) or {}
+            _email = _sa.get("client_email", "")
+            print(f"Using Google service account: {_email}")
+    except Exception:
+        pass
     gc = gspread.authorize(creds)
     sheet = gc.open_by_key(sheet_id).sheet1
 

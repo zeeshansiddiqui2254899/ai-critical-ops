@@ -1,0 +1,40 @@
+﻿2025-11-07T11:25:47.8289954Z ##[group]Run python auto_daily_report.py
+2025-11-07T11:25:47.8290283Z [36;1mpython auto_daily_report.py[0m
+2025-11-07T11:25:47.8309228Z shell: /usr/bin/bash -e {0}
+2025-11-07T11:25:47.8309473Z env:
+2025-11-07T11:25:47.8309735Z   pythonLocation: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:47.8310149Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.10.19/x64/lib/pkgconfig
+2025-11-07T11:25:47.8310644Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:47.8310992Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:47.8311325Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:47.8311665Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.10.19/x64/lib
+2025-11-07T11:25:47.8312634Z   OPENAI_API_KEY: ***
+2025-11-07T11:25:47.8312920Z   JIRA_BASE_URL: ***
+2025-11-07T11:25:47.8313143Z   JIRA_EMAIL: ***
+2025-11-07T11:25:47.8313959Z   JIRA_API_TOKEN: ***
+2025-11-07T11:25:47.8314244Z   SHEET_ID: ***
+2025-11-07T11:25:47.8314435Z ##[endgroup]
+2025-11-07T11:25:49.7856703Z Traceback (most recent call last):
+2025-11-07T11:25:49.7864852Z   File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/gspread/client.py", line 168, in open_by_key
+2025-11-07T11:25:49.7865943Z     spreadsheet = Spreadsheet(self.http_client, {"id": key})
+2025-11-07T11:25:49.7867023Z   File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/gspread/spreadsheet.py", line 29, in __init__
+2025-11-07T11:25:49.7868062Z     metadata = self.fetch_sheet_metadata()
+2025-11-07T11:25:49.7869011Z   File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/gspread/spreadsheet.py", line 230, in fetch_sheet_metadata
+2025-11-07T11:25:49.7870465Z     return self.client.fetch_sheet_metadata(self.id, params=params)
+2025-11-07T11:25:49.7872295Z   File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/gspread/http_client.py", line 305, in fetch_sheet_metadata
+2025-11-07T11:25:49.7873918Z     r = self.request("get", url, params=params)
+2025-11-07T11:25:49.7875491Z   File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/gspread/http_client.py", line 128, in request
+2025-11-07T11:25:49.7876981Z     raise APIError(response)
+2025-11-07T11:25:49.7878150Z gspread.exceptions.APIError: APIError: [403]: The caller does not have permission
+2025-11-07T11:25:49.7879003Z 
+2025-11-07T11:25:49.7879491Z The above exception was the direct cause of the following exception:
+2025-11-07T11:25:49.7880203Z 
+2025-11-07T11:25:49.7880523Z Traceback (most recent call last):
+2025-11-07T11:25:49.7881808Z   File "/home/runner/work/ai-critical-ops/ai-critical-ops/auto_daily_report.py", line 577, in <module>
+2025-11-07T11:25:49.7883455Z     main()
+2025-11-07T11:25:49.7884517Z   File "/home/runner/work/ai-critical-ops/ai-critical-ops/auto_daily_report.py", line 366, in main
+2025-11-07T11:25:49.7885791Z     sheet = gc.open_by_key(sheet_id).sheet1
+2025-11-07T11:25:49.7887448Z   File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/gspread/client.py", line 173, in open_by_key
+2025-11-07T11:25:49.7888988Z     raise PermissionError from ex
+2025-11-07T11:25:49.7889651Z PermissionError
+2025-11-07T11:25:49.9700253Z ##[error]Process completed with exit code 1.

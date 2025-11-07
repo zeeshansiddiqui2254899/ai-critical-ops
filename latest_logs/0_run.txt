@@ -1,0 +1,336 @@
+﻿2025-11-07T11:25:26.8647678Z Current runner version: '2.329.0'
+2025-11-07T11:25:26.8669412Z ##[group]Runner Image Provisioner
+2025-11-07T11:25:26.8670194Z Hosted Compute Agent
+2025-11-07T11:25:26.8670762Z Version: 20251016.436
+2025-11-07T11:25:26.8671360Z Commit: 8ab8ac8bfd662a3739dab9fe09456aba92132568
+2025-11-07T11:25:26.8672011Z Build Date: 2025-10-15T20:44:12Z
+2025-11-07T11:25:26.8672603Z ##[endgroup]
+2025-11-07T11:25:26.8673110Z ##[group]Operating System
+2025-11-07T11:25:26.8673632Z Ubuntu
+2025-11-07T11:25:26.8674118Z 24.04.3
+2025-11-07T11:25:26.8674582Z LTS
+2025-11-07T11:25:26.8675069Z ##[endgroup]
+2025-11-07T11:25:26.8675554Z ##[group]Runner Image
+2025-11-07T11:25:26.8676090Z Image: ubuntu-24.04
+2025-11-07T11:25:26.8676686Z Version: 20251030.96.2
+2025-11-07T11:25:26.8677748Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20251030.96/images/ubuntu/Ubuntu2404-Readme.md
+2025-11-07T11:25:26.8679219Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20251030.96
+2025-11-07T11:25:26.8680169Z ##[endgroup]
+2025-11-07T11:25:26.8681268Z ##[group]GITHUB_TOKEN Permissions
+2025-11-07T11:25:26.8683123Z Contents: read
+2025-11-07T11:25:26.8683708Z Metadata: read
+2025-11-07T11:25:26.8684218Z Packages: read
+2025-11-07T11:25:26.8684706Z ##[endgroup]
+2025-11-07T11:25:26.8686950Z Secret source: Actions
+2025-11-07T11:25:26.8688051Z Prepare workflow directory
+2025-11-07T11:25:26.9035666Z Prepare all required actions
+2025-11-07T11:25:26.9073295Z Getting action download info
+2025-11-07T11:25:27.2613512Z Download action repository 'actions/checkout@v4' (SHA:08eba0b27e820071cde6df949e0beb9ba4906955)
+2025-11-07T11:25:27.3317939Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2025-11-07T11:25:27.5214790Z Complete job name: run
+2025-11-07T11:25:27.5794420Z ##[group]Run actions/checkout@v4
+2025-11-07T11:25:27.5795248Z with:
+2025-11-07T11:25:27.5795924Z   repository: zeeshansiddiqui2254899/ai-critical-ops
+2025-11-07T11:25:27.5796737Z   token: ***
+2025-11-07T11:25:27.5797551Z   ssh-strict: true
+2025-11-07T11:25:27.5798056Z   ssh-user: git
+2025-11-07T11:25:27.5798529Z   persist-credentials: true
+2025-11-07T11:25:27.5799102Z   clean: true
+2025-11-07T11:25:27.5799590Z   sparse-checkout-cone-mode: true
+2025-11-07T11:25:27.5800156Z   fetch-depth: 1
+2025-11-07T11:25:27.5800659Z   fetch-tags: false
+2025-11-07T11:25:27.5801128Z   show-progress: true
+2025-11-07T11:25:27.5801619Z   lfs: false
+2025-11-07T11:25:27.5802064Z   submodules: false
+2025-11-07T11:25:27.5802526Z   set-safe-directory: true
+2025-11-07T11:25:27.5803407Z ##[endgroup]
+2025-11-07T11:25:27.6784720Z Syncing repository: zeeshansiddiqui2254899/ai-critical-ops
+2025-11-07T11:25:27.6786704Z ##[group]Getting Git version info
+2025-11-07T11:25:27.6788160Z Working directory is '/home/runner/work/ai-critical-ops/ai-critical-ops'
+2025-11-07T11:25:27.6789402Z [command]/usr/bin/git version
+2025-11-07T11:25:27.6836042Z git version 2.51.2
+2025-11-07T11:25:27.6860101Z ##[endgroup]
+2025-11-07T11:25:27.6872135Z Temporarily overriding HOME='/home/runner/work/_temp/2a42d9de-b6b5-4403-b541-374a157705d5' before making global git config changes
+2025-11-07T11:25:27.6873477Z Adding repository directory to the temporary git global config as a safe directory
+2025-11-07T11:25:27.6877019Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/ai-critical-ops/ai-critical-ops
+2025-11-07T11:25:27.6907462Z Deleting the contents of '/home/runner/work/ai-critical-ops/ai-critical-ops'
+2025-11-07T11:25:27.6910335Z ##[group]Initializing the repository
+2025-11-07T11:25:27.6913765Z [command]/usr/bin/git init /home/runner/work/ai-critical-ops/ai-critical-ops
+2025-11-07T11:25:27.6995575Z hint: Using 'master' as the name for the initial branch. This default branch name
+2025-11-07T11:25:27.6996578Z hint: is subject to change. To configure the initial branch name to use in all
+2025-11-07T11:25:27.6997694Z hint: of your new repositories, which will suppress this warning, call:
+2025-11-07T11:25:27.6998690Z hint:
+2025-11-07T11:25:27.6999584Z hint: 	git config --global init.defaultBranch <name>
+2025-11-07T11:25:27.7000250Z hint:
+2025-11-07T11:25:27.7000853Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2025-11-07T11:25:27.7001740Z hint: 'development'. The just-created branch can be renamed via this command:
+2025-11-07T11:25:27.7002550Z hint:
+2025-11-07T11:25:27.7003103Z hint: 	git branch -m <name>
+2025-11-07T11:25:27.7003933Z hint:
+2025-11-07T11:25:27.7004695Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2025-11-07T11:25:27.7005720Z Initialized empty Git repository in /home/runner/work/ai-critical-ops/ai-critical-ops/.git/
+2025-11-07T11:25:27.7009705Z [command]/usr/bin/git remote add origin https://github.com/zeeshansiddiqui2254899/ai-critical-ops
+2025-11-07T11:25:27.7034682Z ##[endgroup]
+2025-11-07T11:25:27.7035543Z ##[group]Disabling automatic garbage collection
+2025-11-07T11:25:27.7038230Z [command]/usr/bin/git config --local gc.auto 0
+2025-11-07T11:25:27.7059118Z ##[endgroup]
+2025-11-07T11:25:27.7059916Z ##[group]Setting up auth
+2025-11-07T11:25:27.7064748Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-11-07T11:25:27.7185373Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-11-07T11:25:27.7350841Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-11-07T11:25:27.7374779Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-11-07T11:25:27.7538579Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2025-11-07T11:25:27.7565693Z ##[endgroup]
+2025-11-07T11:25:27.7566860Z ##[group]Fetching the repository
+2025-11-07T11:25:27.7574635Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +25b95e3b929392f9b6b826ccbbfe0ccb9a7ae290:refs/remotes/origin/main
+2025-11-07T11:25:28.3040704Z From https://github.com/zeeshansiddiqui2254899/ai-critical-ops
+2025-11-07T11:25:28.3042060Z  * [new ref]         25b95e3b929392f9b6b826ccbbfe0ccb9a7ae290 -> origin/main
+2025-11-07T11:25:28.3063986Z ##[endgroup]
+2025-11-07T11:25:28.3064676Z ##[group]Determining the checkout info
+2025-11-07T11:25:28.3065703Z ##[endgroup]
+2025-11-07T11:25:28.3070491Z [command]/usr/bin/git sparse-checkout disable
+2025-11-07T11:25:28.3100940Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2025-11-07T11:25:28.3121980Z ##[group]Checking out the ref
+2025-11-07T11:25:28.3124728Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2025-11-07T11:25:28.3165348Z Switched to a new branch 'main'
+2025-11-07T11:25:28.3166322Z branch 'main' set up to track 'origin/main'.
+2025-11-07T11:25:28.3170998Z ##[endgroup]
+2025-11-07T11:25:28.3199519Z [command]/usr/bin/git log -1 --format=%H
+2025-11-07T11:25:28.3215958Z 25b95e3b929392f9b6b826ccbbfe0ccb9a7ae290
+2025-11-07T11:25:28.3416697Z ##[group]Run actions/setup-python@v5
+2025-11-07T11:25:28.3417389Z with:
+2025-11-07T11:25:28.3417771Z   python-version: 3.10
+2025-11-07T11:25:28.3418188Z   check-latest: false
+2025-11-07T11:25:28.3418743Z   token: ***
+2025-11-07T11:25:28.3419124Z   update-environment: true
+2025-11-07T11:25:28.3419564Z   allow-prereleases: false
+2025-11-07T11:25:28.3419999Z   freethreaded: false
+2025-11-07T11:25:28.3420409Z ##[endgroup]
+2025-11-07T11:25:28.5004403Z ##[group]Installed versions
+2025-11-07T11:25:28.5053818Z Successfully set up CPython (3.10.19)
+2025-11-07T11:25:28.5055787Z ##[endgroup]
+2025-11-07T11:25:28.5171415Z ##[group]Run pip install -r requirements.txt
+2025-11-07T11:25:28.5172609Z [36;1mpip install -r requirements.txt[0m
+2025-11-07T11:25:28.5205258Z shell: /usr/bin/bash -e {0}
+2025-11-07T11:25:28.5206205Z env:
+2025-11-07T11:25:28.5207539Z   pythonLocation: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:28.5208818Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.10.19/x64/lib/pkgconfig
+2025-11-07T11:25:28.5210043Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:28.5211199Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:28.5212361Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:28.5213527Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.10.19/x64/lib
+2025-11-07T11:25:28.5214580Z ##[endgroup]
+2025-11-07T11:25:29.6865468Z Collecting openai>=1.0.0 (from -r requirements.txt (line 1))
+2025-11-07T11:25:29.7914959Z   Downloading openai-2.7.1-py3-none-any.whl.metadata (29 kB)
+2025-11-07T11:25:29.9825904Z Collecting pandas>=2.0.0 (from -r requirements.txt (line 2))
+2025-11-07T11:25:30.0017006Z   Downloading pandas-2.3.3-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (91 kB)
+2025-11-07T11:25:30.3052049Z Collecting numpy>=1.24.0 (from -r requirements.txt (line 3))
+2025-11-07T11:25:30.3242148Z   Downloading numpy-2.2.6-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (62 kB)
+2025-11-07T11:25:30.4480381Z Collecting scikit-learn>=1.3.0 (from -r requirements.txt (line 4))
+2025-11-07T11:25:30.4676058Z   Downloading scikit_learn-1.7.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (11 kB)
+2025-11-07T11:25:30.5126712Z Collecting jira>=3.5.0 (from -r requirements.txt (line 5))
+2025-11-07T11:25:30.5319099Z   Downloading jira-3.10.5-py3-none-any.whl.metadata (8.7 kB)
+2025-11-07T11:25:30.5870950Z Collecting python-dotenv>=1.0.0 (from -r requirements.txt (line 6))
+2025-11-07T11:25:30.6059799Z   Downloading python_dotenv-1.2.1-py3-none-any.whl.metadata (25 kB)
+2025-11-07T11:25:30.6578930Z Collecting tqdm>=4.66.0 (from -r requirements.txt (line 7))
+2025-11-07T11:25:30.6769425Z   Downloading tqdm-4.67.1-py3-none-any.whl.metadata (57 kB)
+2025-11-07T11:25:30.7161224Z Collecting tenacity>=8.2.0 (from -r requirements.txt (line 8))
+2025-11-07T11:25:30.7352799Z   Downloading tenacity-9.1.2-py3-none-any.whl.metadata (1.2 kB)
+2025-11-07T11:25:30.7718594Z Collecting gspread>=6.1.4 (from -r requirements.txt (line 9))
+2025-11-07T11:25:30.7906789Z   Downloading gspread-6.2.1-py3-none-any.whl.metadata (11 kB)
+2025-11-07T11:25:30.8464813Z Collecting google-auth>=2.35.0 (from -r requirements.txt (line 10))
+2025-11-07T11:25:30.8656411Z   Downloading google_auth-2.43.0-py2.py3-none-any.whl.metadata (6.6 kB)
+2025-11-07T11:25:30.9050871Z Collecting gspread-dataframe>=3.3.1 (from -r requirements.txt (line 11))
+2025-11-07T11:25:30.9240622Z   Downloading gspread_dataframe-4.0.0-py2.py3-none-any.whl.metadata (4.5 kB)
+2025-11-07T11:25:30.9619499Z Collecting anyio<5,>=3.5.0 (from openai>=1.0.0->-r requirements.txt (line 1))
+2025-11-07T11:25:30.9808865Z   Downloading anyio-4.11.0-py3-none-any.whl.metadata (4.1 kB)
+2025-11-07T11:25:31.0098501Z Collecting distro<2,>=1.7.0 (from openai>=1.0.0->-r requirements.txt (line 1))
+2025-11-07T11:25:31.0288029Z   Downloading distro-1.9.0-py3-none-any.whl.metadata (6.8 kB)
+2025-11-07T11:25:31.0694212Z Collecting httpx<1,>=0.23.0 (from openai>=1.0.0->-r requirements.txt (line 1))
+2025-11-07T11:25:31.0884995Z   Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+2025-11-07T11:25:31.1911047Z Collecting jiter<1,>=0.10.0 (from openai>=1.0.0->-r requirements.txt (line 1))
+2025-11-07T11:25:31.2102655Z   Downloading jiter-0.11.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (5.2 kB)
+2025-11-07T11:25:31.3755576Z Collecting pydantic<3,>=1.9.0 (from openai>=1.0.0->-r requirements.txt (line 1))
+2025-11-07T11:25:31.3951860Z   Downloading pydantic-2.12.4-py3-none-any.whl.metadata (89 kB)
+2025-11-07T11:25:31.4289618Z Collecting sniffio (from openai>=1.0.0->-r requirements.txt (line 1))
+2025-11-07T11:25:31.4476555Z   Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
+2025-11-07T11:25:31.4899009Z Collecting typing-extensions<5,>=4.11 (from openai>=1.0.0->-r requirements.txt (line 1))
+2025-11-07T11:25:31.5086654Z   Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+2025-11-07T11:25:31.5395585Z Collecting exceptiongroup>=1.0.2 (from anyio<5,>=3.5.0->openai>=1.0.0->-r requirements.txt (line 1))
+2025-11-07T11:25:31.5591101Z   Downloading exceptiongroup-1.3.0-py3-none-any.whl.metadata (6.7 kB)
+2025-11-07T11:25:31.5893189Z Collecting idna>=2.8 (from anyio<5,>=3.5.0->openai>=1.0.0->-r requirements.txt (line 1))
+2025-11-07T11:25:31.6079255Z   Downloading idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+2025-11-07T11:25:31.6514947Z Collecting certifi (from httpx<1,>=0.23.0->openai>=1.0.0->-r requirements.txt (line 1))
+2025-11-07T11:25:31.6707062Z   Downloading certifi-2025.10.5-py3-none-any.whl.metadata (2.5 kB)
+2025-11-07T11:25:31.7069475Z Collecting httpcore==1.* (from httpx<1,>=0.23.0->openai>=1.0.0->-r requirements.txt (line 1))
+2025-11-07T11:25:31.7259527Z   Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+2025-11-07T11:25:31.7563063Z Collecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.23.0->openai>=1.0.0->-r requirements.txt (line 1))
+2025-11-07T11:25:31.7751081Z   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+2025-11-07T11:25:31.8046101Z Collecting annotated-types>=0.6.0 (from pydantic<3,>=1.9.0->openai>=1.0.0->-r requirements.txt (line 1))
+2025-11-07T11:25:31.8239853Z   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+2025-11-07T11:25:32.7100081Z Collecting pydantic-core==2.41.5 (from pydantic<3,>=1.9.0->openai>=1.0.0->-r requirements.txt (line 1))
+2025-11-07T11:25:32.7292460Z   Downloading pydantic_core-2.41.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (7.3 kB)
+2025-11-07T11:25:32.7597611Z Collecting typing-inspection>=0.4.2 (from pydantic<3,>=1.9.0->openai>=1.0.0->-r requirements.txt (line 1))
+2025-11-07T11:25:32.7787228Z   Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)
+2025-11-07T11:25:32.8184895Z Collecting python-dateutil>=2.8.2 (from pandas>=2.0.0->-r requirements.txt (line 2))
+2025-11-07T11:25:32.8375039Z   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
+2025-11-07T11:25:32.8948949Z Collecting pytz>=2020.1 (from pandas>=2.0.0->-r requirements.txt (line 2))
+2025-11-07T11:25:32.9142016Z   Downloading pytz-2025.2-py2.py3-none-any.whl.metadata (22 kB)
+2025-11-07T11:25:32.9455985Z Collecting tzdata>=2022.7 (from pandas>=2.0.0->-r requirements.txt (line 2))
+2025-11-07T11:25:32.9645209Z   Downloading tzdata-2025.2-py2.py3-none-any.whl.metadata (1.4 kB)
+2025-11-07T11:25:33.1278201Z Collecting scipy>=1.8.0 (from scikit-learn>=1.3.0->-r requirements.txt (line 4))
+2025-11-07T11:25:33.1467749Z   Downloading scipy-1.15.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (61 kB)
+2025-11-07T11:25:33.1921201Z Collecting joblib>=1.2.0 (from scikit-learn>=1.3.0->-r requirements.txt (line 4))
+2025-11-07T11:25:33.2111121Z   Downloading joblib-1.5.2-py3-none-any.whl.metadata (5.6 kB)
+2025-11-07T11:25:33.2382414Z Collecting threadpoolctl>=3.1.0 (from scikit-learn>=1.3.0->-r requirements.txt (line 4))
+2025-11-07T11:25:33.2571376Z   Downloading threadpoolctl-3.6.0-py3-none-any.whl.metadata (13 kB)
+2025-11-07T11:25:33.2858022Z Collecting defusedxml (from jira>=3.5.0->-r requirements.txt (line 5))
+2025-11-07T11:25:33.3046368Z   Downloading defusedxml-0.7.1-py2.py3-none-any.whl.metadata (32 kB)
+2025-11-07T11:25:33.3382225Z Collecting packaging (from jira>=3.5.0->-r requirements.txt (line 5))
+2025-11-07T11:25:33.3570829Z   Downloading packaging-25.0-py3-none-any.whl.metadata (3.3 kB)
+2025-11-07T11:25:33.3854862Z Collecting requests-oauthlib>=1.1.0 (from jira>=3.5.0->-r requirements.txt (line 5))
+2025-11-07T11:25:33.4043982Z   Downloading requests_oauthlib-2.0.0-py2.py3-none-any.whl.metadata (11 kB)
+2025-11-07T11:25:33.4931243Z Collecting requests>=2.10.0 (from jira>=3.5.0->-r requirements.txt (line 5))
+2025-11-07T11:25:33.5124287Z   Downloading requests-2.32.5-py3-none-any.whl.metadata (4.9 kB)
+2025-11-07T11:25:33.5415544Z Collecting requests_toolbelt (from jira>=3.5.0->-r requirements.txt (line 5))
+2025-11-07T11:25:33.5604505Z   Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl.metadata (14 kB)
+2025-11-07T11:25:33.6093285Z Collecting google-auth-oauthlib>=0.4.1 (from gspread>=6.1.4->-r requirements.txt (line 9))
+2025-11-07T11:25:33.6283818Z   Downloading google_auth_oauthlib-1.2.3-py3-none-any.whl.metadata (3.1 kB)
+2025-11-07T11:25:33.6650259Z Collecting cachetools<7.0,>=2.0.0 (from google-auth>=2.35.0->-r requirements.txt (line 10))
+2025-11-07T11:25:33.6841995Z   Downloading cachetools-6.2.1-py3-none-any.whl.metadata (5.5 kB)
+2025-11-07T11:25:33.7223437Z Collecting pyasn1-modules>=0.2.1 (from google-auth>=2.35.0->-r requirements.txt (line 10))
+2025-11-07T11:25:33.7413448Z   Downloading pyasn1_modules-0.4.2-py3-none-any.whl.metadata (3.5 kB)
+2025-11-07T11:25:33.7732682Z Collecting rsa<5,>=3.1.4 (from google-auth>=2.35.0->-r requirements.txt (line 10))
+2025-11-07T11:25:33.7925386Z   Downloading rsa-4.9.1-py3-none-any.whl.metadata (5.6 kB)
+2025-11-07T11:25:33.8338506Z Collecting pyasn1>=0.1.3 (from rsa<5,>=3.1.4->google-auth>=2.35.0->-r requirements.txt (line 10))
+2025-11-07T11:25:33.8529839Z   Downloading pyasn1-0.6.1-py3-none-any.whl.metadata (8.4 kB)
+2025-11-07T11:25:33.8937602Z Collecting six>=1.12.0 (from gspread-dataframe>=3.3.1->-r requirements.txt (line 11))
+2025-11-07T11:25:33.9126627Z   Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+2025-11-07T11:25:33.9344757Z Collecting google-auth>=2.35.0 (from -r requirements.txt (line 10))
+2025-11-07T11:25:33.9533899Z   Downloading google_auth-2.41.1-py2.py3-none-any.whl.metadata (6.6 kB)
+2025-11-07T11:25:34.0874370Z Collecting charset_normalizer<4,>=2 (from requests>=2.10.0->jira>=3.5.0->-r requirements.txt (line 5))
+2025-11-07T11:25:34.1065410Z   Downloading charset_normalizer-3.4.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (37 kB)
+2025-11-07T11:25:34.1566486Z Collecting urllib3<3,>=1.21.1 (from requests>=2.10.0->jira>=3.5.0->-r requirements.txt (line 5))
+2025-11-07T11:25:34.1757884Z   Downloading urllib3-2.5.0-py3-none-any.whl.metadata (6.5 kB)
+2025-11-07T11:25:34.2187824Z Collecting oauthlib>=3.0.0 (from requests-oauthlib>=1.1.0->jira>=3.5.0->-r requirements.txt (line 5))
+2025-11-07T11:25:34.2378002Z   Downloading oauthlib-3.3.1-py3-none-any.whl.metadata (7.9 kB)
+2025-11-07T11:25:34.3218329Z Downloading openai-2.7.1-py3-none-any.whl (1.0 MB)
+2025-11-07T11:25:34.3677417Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.0/1.0 MB 30.4 MB/s  0:00:00
+2025-11-07T11:25:34.3867777Z Downloading anyio-4.11.0-py3-none-any.whl (109 kB)
+2025-11-07T11:25:34.4080362Z Downloading distro-1.9.0-py3-none-any.whl (20 kB)
+2025-11-07T11:25:34.4289282Z Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+2025-11-07T11:25:34.4500144Z Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+2025-11-07T11:25:34.4728720Z Downloading jiter-0.11.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (359 kB)
+2025-11-07T11:25:34.4956021Z Downloading pydantic-2.12.4-py3-none-any.whl (463 kB)
+2025-11-07T11:25:34.5196173Z Downloading pydantic_core-2.41.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
+2025-11-07T11:25:34.5459938Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 75.8 MB/s  0:00:00
+2025-11-07T11:25:34.5648509Z Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+2025-11-07T11:25:34.5862980Z Downloading pandas-2.3.3-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (12.8 MB)
+2025-11-07T11:25:34.6555887Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.8/12.8 MB 189.8 MB/s  0:00:00
+2025-11-07T11:25:34.6770531Z Downloading numpy-2.2.6-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (16.8 MB)
+2025-11-07T11:25:34.7635156Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.8/16.8 MB 198.1 MB/s  0:00:00
+2025-11-07T11:25:34.7838347Z Downloading scikit_learn-1.7.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (9.7 MB)
+2025-11-07T11:25:34.8344485Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.7/9.7 MB 196.4 MB/s  0:00:00
+2025-11-07T11:25:34.8535341Z Downloading jira-3.10.5-py3-none-any.whl (79 kB)
+2025-11-07T11:25:34.8746539Z Downloading python_dotenv-1.2.1-py3-none-any.whl (21 kB)
+2025-11-07T11:25:34.8953742Z Downloading tqdm-4.67.1-py3-none-any.whl (78 kB)
+2025-11-07T11:25:34.9167979Z Downloading tenacity-9.1.2-py3-none-any.whl (28 kB)
+2025-11-07T11:25:34.9375588Z Downloading gspread-6.2.1-py3-none-any.whl (59 kB)
+2025-11-07T11:25:34.9585982Z Downloading cachetools-6.2.1-py3-none-any.whl (11 kB)
+2025-11-07T11:25:34.9793654Z Downloading rsa-4.9.1-py3-none-any.whl (34 kB)
+2025-11-07T11:25:35.0003508Z Downloading gspread_dataframe-4.0.0-py2.py3-none-any.whl (9.0 kB)
+2025-11-07T11:25:35.0213964Z Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
+2025-11-07T11:25:35.0426228Z Downloading exceptiongroup-1.3.0-py3-none-any.whl (16 kB)
+2025-11-07T11:25:35.0640591Z Downloading google_auth_oauthlib-1.2.3-py3-none-any.whl (19 kB)
+2025-11-07T11:25:35.0850101Z Downloading google_auth-2.41.1-py2.py3-none-any.whl (221 kB)
+2025-11-07T11:25:35.1066729Z Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+2025-11-07T11:25:35.1277613Z Downloading idna-3.11-py3-none-any.whl (71 kB)
+2025-11-07T11:25:35.1489053Z Downloading joblib-1.5.2-py3-none-any.whl (308 kB)
+2025-11-07T11:25:35.1709116Z Downloading pyasn1-0.6.1-py3-none-any.whl (83 kB)
+2025-11-07T11:25:35.1921667Z Downloading pyasn1_modules-0.4.2-py3-none-any.whl (181 kB)
+2025-11-07T11:25:35.2134151Z Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+2025-11-07T11:25:35.2345697Z Downloading pytz-2025.2-py2.py3-none-any.whl (509 kB)
+2025-11-07T11:25:35.2565106Z Downloading requests-2.32.5-py3-none-any.whl (64 kB)
+2025-11-07T11:25:35.2776649Z Downloading charset_normalizer-3.4.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (153 kB)
+2025-11-07T11:25:35.2989917Z Downloading urllib3-2.5.0-py3-none-any.whl (129 kB)
+2025-11-07T11:25:35.3205864Z Downloading certifi-2025.10.5-py3-none-any.whl (163 kB)
+2025-11-07T11:25:35.3422008Z Downloading requests_oauthlib-2.0.0-py2.py3-none-any.whl (24 kB)
+2025-11-07T11:25:35.3630613Z Downloading oauthlib-3.3.1-py3-none-any.whl (160 kB)
+2025-11-07T11:25:35.3846026Z Downloading scipy-1.15.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (37.7 MB)
+2025-11-07T11:25:35.5635378Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 37.7/37.7 MB 212.3 MB/s  0:00:00
+2025-11-07T11:25:35.5827012Z Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+2025-11-07T11:25:35.6037743Z Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
+2025-11-07T11:25:35.6247519Z Downloading threadpoolctl-3.6.0-py3-none-any.whl (18 kB)
+2025-11-07T11:25:35.6457437Z Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+2025-11-07T11:25:35.6664376Z Downloading tzdata-2025.2-py2.py3-none-any.whl (347 kB)
+2025-11-07T11:25:35.6883800Z Downloading defusedxml-0.7.1-py2.py3-none-any.whl (25 kB)
+2025-11-07T11:25:35.7093028Z Downloading packaging-25.0-py3-none-any.whl (66 kB)
+2025-11-07T11:25:35.7305063Z Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl (54 kB)
+2025-11-07T11:25:36.0399336Z Installing collected packages: pytz, urllib3, tzdata, typing-extensions, tqdm, threadpoolctl, tenacity, sniffio, six, python-dotenv, pyasn1, packaging, oauthlib, numpy, joblib, jiter, idna, h11, distro, defusedxml, charset_normalizer, certifi, cachetools, annotated-types, typing-inspection, scipy, rsa, requests, python-dateutil, pydantic-core, pyasn1-modules, httpcore, exceptiongroup, scikit-learn, requests_toolbelt, requests-oauthlib, pydantic, pandas, google-auth, anyio, jira, httpx, google-auth-oauthlib, openai, gspread, gspread-dataframe
+2025-11-07T11:25:47.3618383Z 
+2025-11-07T11:25:47.3675458Z Successfully installed annotated-types-0.7.0 anyio-4.11.0 cachetools-6.2.1 certifi-2025.10.5 charset_normalizer-3.4.4 defusedxml-0.7.1 distro-1.9.0 exceptiongroup-1.3.0 google-auth-2.41.1 google-auth-oauthlib-1.2.3 gspread-6.2.1 gspread-dataframe-4.0.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.11 jira-3.10.5 jiter-0.11.1 joblib-1.5.2 numpy-2.2.6 oauthlib-3.3.1 openai-2.7.1 packaging-25.0 pandas-2.3.3 pyasn1-0.6.1 pyasn1-modules-0.4.2 pydantic-2.12.4 pydantic-core-2.41.5 python-dateutil-2.9.0.post0 python-dotenv-1.2.1 pytz-2025.2 requests-2.32.5 requests-oauthlib-2.0.0 requests_toolbelt-1.0.0 rsa-4.9.1 scikit-learn-1.7.2 scipy-1.15.3 six-1.17.0 sniffio-1.3.1 tenacity-9.1.2 threadpoolctl-3.6.0 tqdm-4.67.1 typing-extensions-4.15.0 typing-inspection-0.4.2 tzdata-2025.2 urllib3-2.5.0
+2025-11-07T11:25:47.8189420Z ##[group]Run echo "$GCP_SA_JSON" > service_account.json
+2025-11-07T11:25:47.8189796Z [36;1mecho "$GCP_SA_JSON" > service_account.json[0m
+2025-11-07T11:25:47.8210625Z shell: /usr/bin/bash -e {0}
+2025-11-07T11:25:47.8210872Z env:
+2025-11-07T11:25:47.8211127Z   pythonLocation: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:47.8211538Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.10.19/x64/lib/pkgconfig
+2025-11-07T11:25:47.8211916Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:47.8212260Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:47.8212618Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:47.8212958Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.10.19/x64/lib
+2025-11-07T11:25:47.8221919Z   GCP_SA_JSON: ***
+2025-11-07T11:25:47.8222133Z ##[endgroup]
+2025-11-07T11:25:47.8289965Z ##[group]Run python auto_daily_report.py
+2025-11-07T11:25:47.8290285Z [36;1mpython auto_daily_report.py[0m
+2025-11-07T11:25:47.8309236Z shell: /usr/bin/bash -e {0}
+2025-11-07T11:25:47.8309480Z env:
+2025-11-07T11:25:47.8309738Z   pythonLocation: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:47.8310158Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.10.19/x64/lib/pkgconfig
+2025-11-07T11:25:47.8310647Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:47.8310994Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:47.8311327Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-11-07T11:25:47.8311668Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.10.19/x64/lib
+2025-11-07T11:25:47.8312637Z   OPENAI_API_KEY: ***
+2025-11-07T11:25:47.8312922Z   JIRA_BASE_URL: ***
+2025-11-07T11:25:47.8313146Z   JIRA_EMAIL: ***
+2025-11-07T11:25:47.8313962Z   JIRA_API_TOKEN: ***
+2025-11-07T11:25:47.8314247Z   SHEET_ID: ***
+2025-11-07T11:25:47.8314467Z ##[endgroup]
+2025-11-07T11:25:49.7856742Z Traceback (most recent call last):
+2025-11-07T11:25:49.7864874Z   File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/gspread/client.py", line 168, in open_by_key
+2025-11-07T11:25:49.7865956Z     spreadsheet = Spreadsheet(self.http_client, {"id": key})
+2025-11-07T11:25:49.7867027Z   File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/gspread/spreadsheet.py", line 29, in __init__
+2025-11-07T11:25:49.7868068Z     metadata = self.fetch_sheet_metadata()
+2025-11-07T11:25:49.7869016Z   File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/gspread/spreadsheet.py", line 230, in fetch_sheet_metadata
+2025-11-07T11:25:49.7870469Z     return self.client.fetch_sheet_metadata(self.id, params=params)
+2025-11-07T11:25:49.7872299Z   File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/gspread/http_client.py", line 305, in fetch_sheet_metadata
+2025-11-07T11:25:49.7873939Z     r = self.request("get", url, params=params)
+2025-11-07T11:25:49.7875494Z   File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/gspread/http_client.py", line 128, in request
+2025-11-07T11:25:49.7876985Z     raise APIError(response)
+2025-11-07T11:25:49.7878156Z gspread.exceptions.APIError: APIError: [403]: The caller does not have permission
+2025-11-07T11:25:49.7879010Z 
+2025-11-07T11:25:49.7879495Z The above exception was the direct cause of the following exception:
+2025-11-07T11:25:49.7880207Z 
+2025-11-07T11:25:49.7880527Z Traceback (most recent call last):
+2025-11-07T11:25:49.7881813Z   File "/home/runner/work/ai-critical-ops/ai-critical-ops/auto_daily_report.py", line 577, in <module>
+2025-11-07T11:25:49.7883460Z     main()
+2025-11-07T11:25:49.7884526Z   File "/home/runner/work/ai-critical-ops/ai-critical-ops/auto_daily_report.py", line 366, in main
+2025-11-07T11:25:49.7885794Z     sheet = gc.open_by_key(sheet_id).sheet1
+2025-11-07T11:25:49.7887467Z   File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/gspread/client.py", line 173, in open_by_key
+2025-11-07T11:25:49.7889000Z     raise PermissionError from ex
+2025-11-07T11:25:49.7889654Z PermissionError
+2025-11-07T11:25:49.9700279Z ##[error]Process completed with exit code 1.
+2025-11-07T11:25:49.9791135Z Post job cleanup.
+2025-11-07T11:25:50.0643675Z [command]/usr/bin/git version
+2025-11-07T11:25:50.0674233Z git version 2.51.2
+2025-11-07T11:25:50.0710687Z Temporarily overriding HOME='/home/runner/work/_temp/b30ff778-a670-420f-8d07-b61402a09bf3' before making global git config changes
+2025-11-07T11:25:50.0711514Z Adding repository directory to the temporary git global config as a safe directory
+2025-11-07T11:25:50.0715827Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/ai-critical-ops/ai-critical-ops
+2025-11-07T11:25:50.0748588Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-11-07T11:25:50.0775245Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-11-07T11:25:50.0950388Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-11-07T11:25:50.0967240Z http.https://github.com/.extraheader
+2025-11-07T11:25:50.0977500Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2025-11-07T11:25:50.1000235Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-11-07T11:25:50.1252868Z Cleaning up orphan processes
