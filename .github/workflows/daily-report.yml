@@ -28,4 +28,14 @@ jobs:
           SHEET_ID: ${{ secrets.SHEET_ID }}
         run: python auto_daily_report.py
 
+      - name: Run Monthly Report (last 5 months)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          MONTHS_HISTORY: 5
+        run: python critical_ops_monthly_report.py
+
 

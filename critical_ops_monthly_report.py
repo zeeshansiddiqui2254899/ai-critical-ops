@@ -132,12 +132,15 @@ if completion_field_id:
 data = []
 start_at = 0
 remaining = 500
+# Determine how far back to fetch based on months history (default 5 months)
+months_history = int(os.getenv("MONTHS_HISTORY", "5"))
+days_back = max(90, months_history * 31)
 while remaining > 0:
     batch = min(50, remaining)
     r = requests.get(
         issues_url,
         params={
-            "jql": "statusCategory=Done AND updated >= -90d ORDER BY updated DESC",
+            "jql": f"statusCategory=Done AND updated >= -{days_back}d ORDER BY updated DESC",
             "startAt": start_at,
             "maxResults": batch,
             "fields": ",".join(fields_list),
@@ -185,7 +188,7 @@ def month_bounds(dt_utc: pd.Timestamp):
         end = pd.Timestamp(dt_utc.year, dt_utc.month + 1, 1, tz="UTC")
     return start, end
 
-# Build last 3 months tabs
+# Build last N months tabs (configurable via MONTHS_HISTORY)
 def write_month(tab_name: str, df_month: pd.DataFrame):
     if df_month.empty:
         try:
@@ -298,7 +301,7 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
 now_utc = pd.Timestamp.now(tz="UTC")
 months = []
 cur = now_utc
-for _ in range(3):
+for _ in range(months_history):
     months.append(cur)
     y = cur.year if cur.month > 1 else cur.year - 1
     m = cur.month - 1 if cur.month > 1 else 12
@@ -311,7 +314,7 @@ for mdt in months:
     df_month = df_all[(df_all["completion_date"] >= start) & (df_all["completion_date"] < end)]
     write_month(tab, df_month)
 
-print("✅ Google Sheet updated with last 3 months tabs.")
+print(f"✅ Google Sheet updated with last {months_history} months tabs.")
 
 # Auto-refresh Summary tab
 try:
