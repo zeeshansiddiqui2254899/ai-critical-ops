@@ -502,6 +502,22 @@ def main() -> None:
             temperature=0.2,
         )
         summary = resp.choices[0].message.content.strip()
+
+        # Concise 5–10 word crux for the cluster
+        try:
+            crux_prompt = (
+                "From this summary, extract a concise 5–10 word crux capturing the main failure and cause. "
+                "Return only the phrase.\n\n" + summary
+            )
+            crux_resp = client.chat.completions.create(
+                model=chat_model,
+                messages=[{"role": "user", "content": crux_prompt}],
+                temperature=0,
+            )
+            crux = crux_resp.choices[0].message.content.strip()
+        except Exception:
+            crux = "Concise crux not available"
+
         # Plain text list of all example ids (no hyperlink)
         example_link = ", ".join([str(x) for x in group["id"].astype(str).tolist()])
 
@@ -509,6 +525,7 @@ def main() -> None:
             {
                 "cluster_id": cid,
                 "recurring_summary": summary,
+                "crux": crux,
                 "feature": (group["feature"].mode()[0] if not group["feature"].isna().all() else "Unknown"),
                 "error_type": (group["error_type"].mode()[0] if not group["error_type"].isna().all() else "Unknown"),
                 "total_tickets": int(len(group)),
@@ -522,8 +539,22 @@ def main() -> None:
     # Step 5: Write to Google Sheet (replace)
     sheet.clear()
     if len(out_df) == 0:
-        sheet.append_row(["cluster_id", "recurring_summary", "feature", "error_type", "total_tickets", "example_ids", "status"])
+        sheet.append_row(["cluster_id", "recurring_summary", "crux", "feature", "error_type", "total_tickets", "example_ids", "status"])
     else:
+        # Ensure column order places crux beside recurring_summary
+        desired_cols = [
+            "cluster_id",
+            "recurring_summary",
+            "crux",
+            "feature",
+            "error_type",
+            "total_tickets",
+            "example_ids",
+            "status",
+        ]
+        # Reindex if all expected columns exist; otherwise fall back to current order
+        if all(c in out_df.columns for c in desired_cols):
+            out_df = out_df[desired_cols]
         sheet.append_row(out_df.columns.tolist())
         sheet.append_rows(out_df.values.tolist())
     print(f"✅ Google Sheet updated successfully at {datetime.datetime.now()} with {len(out_df)} clusters.")
