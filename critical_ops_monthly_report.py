@@ -193,7 +193,7 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
         except gspread.exceptions.WorksheetNotFound:
             worksheet = sh.add_worksheet(title=tab_name, rows="1000", cols="20")
         worksheet.clear()
-        worksheet.append_row(["Cluster ID","Recurring Summary (AI Root Cause)","Crux","Feature","Error Type","Priority","Total Tickets","Example Ticket IDs","Avg Age (Days)","Status","Resolution Suggestion","Create Date"])
+        worksheet.append_row(["Cluster ID","Recurring Summary (AI Root Cause)","Crux","Feature","Error Type","Total Tickets","Example Ticket IDs","Status","Resolution Suggestion","Create Date"])
         return
 
     df_month = df_month.copy()
@@ -268,7 +268,6 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
         except Exception:
             crux = "Concise crux not available"
 
-        avg_age_days = (pd.Timestamp.now(tz="UTC") - pd.to_datetime(group["completion_date"], utc=True).mean()).days
         create_date = pd.to_datetime(group["completion_date"], utc=True).min().strftime("%Y-%m-%d")
         example_link = ", "; example_link = ", ".join([str(x) for x in group["id"].tolist()[:5]])
 
@@ -278,10 +277,8 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
             "Crux": crux,
             "Feature": group["feature"].mode()[0] if not group["feature"].isna().all() else "Unknown",
             "Error Type": group["error_type"].mode()[0] if not group["error_type"].isna().all() else "Unknown",
-            "Priority": group["priority"].mode()[0] if not group["priority"].isna().all() else "Unknown",
             "Total Tickets": len(group),
             "Example Ticket IDs": example_link,
-            "Avg Age (Days)": avg_age_days,
             "Status": group["status"].mode()[0] if "status" in group and not group["status"].isna().all() else "Unknown",
             "Resolution Suggestion": "See summary",
             "Create Date": create_date,

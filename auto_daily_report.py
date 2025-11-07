@@ -521,6 +521,17 @@ def main() -> None:
         # Plain text list of all example ids (no hyperlink)
         example_link = ", ".join([str(x) for x in group["id"].astype(str).tolist()])
 
+        # Earliest create date in the cluster (YYYY-MM-DD)
+        create_date_val = ""
+        try:
+            if "created" in group.columns:
+                created_ts = pd.to_datetime(group["created"], errors="coerce", utc=True)
+                created_ts = created_ts.dropna()
+                if not created_ts.empty:
+                    create_date_val = created_ts.min().strftime("%Y-%m-%d")
+        except Exception:
+            create_date_val = ""
+
         rows.append(
             {
                 "cluster_id": cid,
@@ -531,6 +542,7 @@ def main() -> None:
                 "total_tickets": int(len(group)),
                 "example_ids": example_link,
                 "status": (group["status"].mode()[0] if "status" in group and not group["status"].isna().all() else "Unknown"),
+                "create_date": create_date_val,
             }
         )
 
@@ -539,7 +551,7 @@ def main() -> None:
     # Step 5: Write to Google Sheet (replace)
     sheet.clear()
     if len(out_df) == 0:
-        sheet.append_row(["cluster_id", "recurring_summary", "crux", "feature", "error_type", "total_tickets", "example_ids", "status"])
+        sheet.append_row(["cluster_id", "recurring_summary", "crux", "feature", "error_type", "total_tickets", "example_ids", "status", "create_date"])
     else:
         # Ensure column order places crux beside recurring_summary
         desired_cols = [
@@ -551,6 +563,7 @@ def main() -> None:
             "total_tickets",
             "example_ids",
             "status",
+            "create_date",
         ]
         # Reindex if all expected columns exist; otherwise fall back to current order
         if all(c in out_df.columns for c in desired_cols):
