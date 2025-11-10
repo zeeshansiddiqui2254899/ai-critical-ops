@@ -408,12 +408,14 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
             kb_ctx = retrieve_context_for_text(text, top_k=5, max_chars=3500, embed_model=EMBED_MODEL)
         except Exception:
             kb_ctx = ""
+        ctx_str = ("Relevant similar tickets:\n" + kb_ctx + "\n\n") if kb_ctx else ""
         prompt = f"""Write a clear, non-superlative explanation for a product manager.
         Use simple language (no hype). Provide 3–5 short sentences (<= 120 words) that cover:
         1) What failed and where (system/vendor/module),
         2) Observable symptoms and scope (who/how many were affected),
         3) Likely root cause, and
-        4) One recommended next action or prevention step.{("\\nRelevant similar tickets:\\n" + kb_ctx) if kb_ctx else ""}
+        4) One recommended next action or prevention step.
+        {ctx_str}
         ---
         {text}
         ---
