@@ -390,6 +390,12 @@ def _safe_generate_text(model_name: str, prompt: str) -> Tuple[bool, str]:
     except Exception:
         return False, ""
 
+def _openai_embed_dim(model_name: str) -> int:
+    name = (model_name or "").lower()
+    if "text-embedding-3-large" in name:
+        return 3072
+    return 1536
+
 
 def classify_feature_error(model_name: str, text: str, feature_labels: List[str] = None, error_labels: List[str] = None) -> Dict[str, str]:
     # Limit text size to keep prompts reliable
@@ -643,10 +649,14 @@ def main() -> None:
             try:
                 resp = openai_client.embeddings.create(model=embed_model, input=chunk)
                 for item in resp.data:
-                    embeddings.append(item.embedding)
+                    emb = getattr(item, "embedding", None) or []
+                    if not emb:
+                        emb = [0.0] * _openai_embed_dim(embed_model)
+                    embeddings.append(emb)
             except Exception:
+                dim = _openai_embed_dim(embed_model)
                 for _ in chunk:
-                    embeddings.append([])
+                    embeddings.append([0.0] * dim)
     else:
         for chunk in batched(texts, 32):
             for t in chunk:

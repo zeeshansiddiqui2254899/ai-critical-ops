@@ -299,10 +299,14 @@ def main() -> None:
             try:
                 resp = openai_client.embeddings.create(model=embed_model, input=chunk)
                 for item in resp.data:
-                    embeddings.append(item.embedding)
+                    emb = getattr(item, "embedding", None) or []
+                    if not emb:
+                        emb = [0.0] * (3072 if "text-embedding-3-large" in (embed_model or "").lower() else 1536)
+                    embeddings.append(emb)
             except Exception:
+                dim = 3072 if "text-embedding-3-large" in (embed_model or "").lower() else 1536
                 for _ in chunk:
-                    embeddings.append([])
+                    embeddings.append([0.0] * dim)
     else:
         for chunk in batched(texts, 32):
             for t in chunk:
