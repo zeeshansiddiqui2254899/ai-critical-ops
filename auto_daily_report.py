@@ -698,6 +698,9 @@ def main() -> None:
 
     emb_matrix = np.array(embeddings, dtype=np.float32)
     sim = cosine_similarity(emb_matrix)
+    # Ensure self-similarity is maximal to avoid empty clusters even with degenerate embeddings
+    if sim.size > 0:
+        np.fill_diagonal(sim, 1.0)
 
     # Step 4: Clustering by threshold
     threshold = float(os.getenv("SIMILARITY_THRESHOLD", "0.78"))
@@ -707,7 +710,7 @@ def main() -> None:
     for i in range(n):
         if i in visited:
             continue
-        group = [j for j in range(n) if sim[i, j] >= threshold]
+        group = [j for j in range(n) if (j == i) or (sim[i, j] >= threshold)]
         clusters.append(group)
         visited.update(group)
     index_to_cluster: Dict[int, int] = {}
