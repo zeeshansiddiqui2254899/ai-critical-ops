@@ -56,11 +56,13 @@ def fetch_jira_issues_last_days(
     project_input: str,
     days: int,
     max_results: int = 200,
+    use_updated: bool = False,
 ) -> List[Dict[str, Any]]:
     # Resolve to key if possible; accept either key or name and query both
     resolved_key = discover_project_key(base_url, email, token, project_input) or project_input
     jql_project_clause = f'project in ("{project_input}", "{resolved_key}")'
-    jql = f'{jql_project_clause} AND created >= -{days}d ORDER BY created DESC'
+    date_field = "updated" if use_updated else "created"
+    jql = f'{jql_project_clause} AND {date_field} >= -{days}d ORDER BY {date_field} DESC'
 
     records: List[Dict[str, Any]] = []
     # Use fixed custom field IDs
@@ -214,7 +216,7 @@ def fetch_jira_issues_last_days(
                     batch_size = min(50, remaining)
                     issues_url = base_url.rstrip("/") + f"/rest/agile/1.0/board/{board_id}/issue"
                     params = {
-                        "jql": f"created >= -{days}d ORDER BY created DESC",
+                        "jql": f"{date_field} >= -{days}d ORDER BY {date_field} DESC",
                         "startAt": start_at,
                         "maxResults": batch_size,
                         "fields": f"summary,description,status,created,updated,{feature_field_id},{error_field_id}",
@@ -527,7 +529,13 @@ def main() -> None:
     except Exception:
         pass
     gc = gspread.authorize(creds)
-    sheet = gc.open_by_key(sheet_id).sheet1
+    sh = gc.open_by_key(sheet_id)
+    # Ensure writing to a tab named "last 15 days"
+    target_tab = os.getenv("DAILY_TAB_NAME", "last 15 days")
+    try:
+        sheet = sh.worksheet(target_tab)
+    except gspread.exceptions.WorksheetNotFound:
+        sheet = sh.add_worksheet(title=target_tab, rows="2000", cols="20")
 
     # Step 1: Fetch Jira
     issues = fetch_jira_issues_last_days(
@@ -537,6 +545,14 @@ def main() -> None:
     if not issues:
         # Final inline fallback via Agile API
         resolved_key = discover_project_key(jira_base_url, jira_email, jira_api_token, project_input) or project_input
+        # Try updated date if created returned none
+        if not issues:
+            try:
+                issues = fetch_jira_issues_last_days(
+                    jira_base_url, jira_email, jira_api_token, project_input, days, max_results=200, use_updated=True
+                )
+            except Exception:
+                pass
         try:
             boards_url = jira_base_url.rstrip("/") + "/rest/agile/1.0/board"
             r = requests.get(
@@ -558,7 +574,7 @@ def main() -> None:
                         resp = requests.get(
                             issues_url,
                             params={
-                                "jql": f"created >= -{days}d ORDER BY created DESC",
+                                "jql": f"{'updated' if os.getenv('USE_UPDATED_DATE','0')=='1' else 'created'} >= -{days}d ORDER BY {'updated' if os.getenv('USE_UPDATED_DATE','0')=='1' else 'created'} DESC",
                                 "startAt": start_at,
                                 "maxResults": batch,
                                 "fields": "summary,description,created,updated,customfield_10015,customfield_10016",
