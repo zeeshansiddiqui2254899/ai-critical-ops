@@ -28,6 +28,7 @@ jobs:
           JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
+          JIRA_LOOKBACK_DAYS: 15
         run: python auto_daily_report.py
 
       - name: Run Monthly Report (current month)
