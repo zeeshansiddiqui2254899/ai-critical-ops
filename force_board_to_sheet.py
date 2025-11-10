@@ -274,7 +274,18 @@ def main() -> None:
         )
         ok, summary = _safe_generate_text(chat_model, prompt)
         if not ok or not summary:
-            summary = "Summary unavailable"
+            sample_summary = (str(group["summary"].iloc[0]) if "summary" in group.columns and len(group) > 0 else "").strip()
+            sample_desc = (str(group["description"].iloc[0]) if "description" in group.columns and len(group) > 0 else "").strip()
+            feature_hint = (str(group["feature"].mode(dropna=True).astype(str).iloc[0]) if "feature" in group and not group["feature"].isna().all() else "General")
+            error_hint = (str(group["error_type"].mode(dropna=True).astype(str).iloc[0]) if "error_type" in group and not group["error_type"].isna().all() else "General")
+            tickets_count = int(len(group))
+            first_sentence = (sample_summary or sample_desc).split(".")[0][:180]
+            summary = (
+                f"{first_sentence}."
+                f" Observed in {tickets_count} ticket(s); scope appears limited."
+                f" Likely area: {feature_hint}; failure type looks like {error_hint}."
+                " Root cause not yet confirmed. Next action: reproduce and check logs."
+            )
         # Build concise crux (5–10 words)
         try:
             crux_prompt = (
@@ -282,9 +293,9 @@ def main() -> None:
                 "Return only the phrase.\n\n" + summary
             )
             ok2, crux = _safe_generate_text(chat_model, crux_prompt)
-            crux = crux if ok2 and crux else "Concise crux not available"
+            crux = crux if ok2 and crux else f"{feature_hint} {error_hint} issue in reported flow"
         except Exception:
-            crux = "Concise crux not available"
+            crux = f"{feature_hint} {error_hint} issue in reported flow"
         # Plain text list of all example ids (no hyperlink)
         example_link = ", ".join([str(x) for x in group["id"].astype(str).tolist()])
 

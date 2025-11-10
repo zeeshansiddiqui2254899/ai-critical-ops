@@ -326,9 +326,25 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
         try:
             root_cause = _safe_generate_text(CHAT_MODEL, prompt)
             if not root_cause:
-                root_cause = "Summary unavailable"
+                # Deterministic fallback built from data
+                sample_summary = (str(group["summary"].iloc[0]) if "summary" in group.columns and len(group) > 0 else "").strip()
+                sample_desc = (str(group["description"].iloc[0]) if "description" in group.columns and len(group) > 0 else "").strip()
+                feature_hint = (str(group["feature"].mode()[0]) if "feature" in group and not group["feature"].isna().all() else "General")
+                error_hint = (str(group["error_type"].mode()[0]) if "error_type" in group and not group["error_type"].isna().all() else "General")
+                tickets_count = int(len(group))
+                first_sentence = (sample_summary or sample_desc).split(".")[0][:180]
+                root_cause = (
+                    f"{first_sentence}."
+                    f" Observed in {tickets_count} ticket(s); scope limited to reported cases."
+                    f" Likely area: {feature_hint}; failure type suggests {error_hint}."
+                    " Root cause not confirmed from ticket text."
+                    " Next action: reproduce, diff recent changes, and review integration logs."
+                )
         except Exception as e:
-            root_cause = f"Summary unavailable: {e}"
+            root_cause = (
+                f"Observed pattern without AI summary due to error. "
+                f"Likely area {feature_hint} with {error_hint} symptoms. ({e})"
+            )
 
         # concise crux 5–10 words
         try:
@@ -336,9 +352,11 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
                 "From this summary, extract a concise 5–10 word crux capturing the main failure and cause. "
                 "Return only the phrase.\n\n" + root_cause
             )
-            crux = _safe_generate_text(CHAT_MODEL, crux_prompt) or "Concise crux not available"
+            crux = _safe_generate_text(CHAT_MODEL, crux_prompt)
+            if not crux:
+                crux = f"{feature_hint} {error_hint} issue in reported flow"
         except Exception:
-            crux = "Concise crux not available"
+            crux = f"{feature_hint} {error_hint} issue in reported flow"
 
         create_date = pd.to_datetime(group["completion_date"], utc=True).min().strftime("%Y-%m-%d")
         example_link = ", "; example_link = ", ".join([str(x) for x in group["id"].tolist()[:5]])
