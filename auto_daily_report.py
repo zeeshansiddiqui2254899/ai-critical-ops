@@ -532,10 +532,18 @@ def main() -> None:
     sh = gc.open_by_key(sheet_id)
     # Ensure writing to a tab named "last 15 days"
     target_tab = os.getenv("DAILY_TAB_NAME", "last 15 days")
-    try:
-        sheet = sh.worksheet(target_tab)
-    except gspread.exceptions.WorksheetNotFound:
-        sheet = sh.add_worksheet(title=target_tab, rows="2000", cols="20")
+    # Robust lookup: case/space-insensitive match
+    norm = target_tab.strip().lower()
+    sheet = None
+    for ws in sh.worksheets():
+        if (ws.title or "").strip().lower() == norm:
+            sheet = ws
+            break
+    if sheet is None:
+        try:
+            sheet = sh.worksheet(target_tab)
+        except gspread.exceptions.WorksheetNotFound:
+            sheet = sh.add_worksheet(title=target_tab, rows="2000", cols="20")
 
     # Step 1: Fetch Jira
     issues = fetch_jira_issues_last_days(
