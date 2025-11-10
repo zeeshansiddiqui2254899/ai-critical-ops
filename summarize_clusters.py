@@ -3,14 +3,17 @@ from typing import Dict, List
 
 import pandas as pd
 from dotenv import load_dotenv
-from openai import OpenAI
+import google.generativeai as genai
 
 
 def main() -> None:
     load_dotenv()
 
-    chat_model = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    chat_model = os.getenv("GEMINI_CHAT_MODEL", "gemini-1.5-flash")
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise SystemExit("Missing GEMINI_API_KEY")
+    genai.configure(api_key=api_key)
 
     input_path = "critical_ops_clusters.csv"
     if not os.path.exists(input_path):
@@ -36,13 +39,12 @@ def main() -> None:
             f"Tickets:\n{joined_text}\n\nReturn exactly one concise sentence."
         )
 
-        response = client.chat.completions.create(
-            model=chat_model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-        )
-
-        summary = response.choices[0].message.content.strip()
+        try:
+            model = genai.GenerativeModel(chat_model)
+            response = model.generate_content(prompt)
+            summary = (response.text or "").strip()
+        except Exception:
+            summary = "Summary unavailable"
         summaries.append({
             "cluster_id": cluster_id,
             "summary": summary,

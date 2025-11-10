@@ -4,7 +4,7 @@ from typing import List
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
-from openai import OpenAI
+import google.generativeai as genai
 from sklearn.metrics.pairwise import cosine_similarity
 from tqdm import tqdm
 
@@ -16,14 +16,16 @@ def batched(iterable: List[str], batch_size: int) -> List[List[str]]:
 def main() -> None:
     load_dotenv()
 
-    embed_model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-large")
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise SystemExit("Missing GEMINI_API_KEY")
+    genai.configure(api_key=api_key)
+    embed_model = os.getenv("GEMINI_EMBED_MODEL", "text-embedding-004")
     similarity_threshold_str = os.getenv("SIMILARITY_THRESHOLD", "0.85")
     try:
         similarity_threshold = float(similarity_threshold_str)
     except ValueError:
         similarity_threshold = 0.85
-
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     input_path = "critical_ops_issues.csv"
     if not os.path.exists(input_path):
@@ -44,9 +46,13 @@ def main() -> None:
     embeddings: List[List[float]] = []
     batch_size = 64
     for chunk in tqdm(batched(texts, batch_size), total=max(1, (len(texts) + batch_size - 1) // batch_size), desc="Embedding"):
-        response = client.embeddings.create(model=embed_model, input=chunk)
-        for item in response.data:
-            embeddings.append(item.embedding)
+        for t in chunk:
+            try:
+                res = genai.embed_content(model=embed_model, content=t)
+                emb = res.get("embedding") or res.get("data", {}).get("embedding") or []
+                embeddings.append(emb)
+            except Exception:
+                embeddings.append([])
 
     if len(embeddings) != len(texts):
         raise RuntimeError("Mismatch between number of texts and embeddings")

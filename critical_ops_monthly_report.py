@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from jira import JIRA
 import requests
-from openai import OpenAI
+import google.generativeai as genai
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import AgglomerativeClustering
 import gspread
@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 # 1️⃣  Load environment variables
 # -----------------------------
 load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 JIRA_BASE_URL = os.getenv("JIRA_BASE_URL") or os.getenv("JIRA_HOST")
 JIRA_EMAIL = os.getenv("JIRA_EMAIL")
 JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN")
@@ -24,9 +24,13 @@ SHEET_ID = os.getenv("SHEET_ID")
 # -----------------------------
 # 2️⃣  Connect to APIs
 # -----------------------------
-client = OpenAI(api_key=OPENAI_API_KEY)
 jira = JIRA(server=JIRA_BASE_URL, basic_auth=(JIRA_EMAIL, JIRA_API_TOKEN))
-CHAT_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+if not GEMINI_API_KEY:
+    raise SystemExit("Missing GEMINI_API_KEY environment variable")
+genai.configure(api_key=GEMINI_API_KEY)
+jira = JIRA(server=JIRA_BASE_URL, basic_auth=(JIRA_EMAIL, JIRA_API_TOKEN))
+CHAT_MODEL = os.getenv("GEMINI_CHAT_MODEL", "gemini-1.5-flash")
+EMBED_MODEL = os.getenv("GEMINI_EMBED_MODEL", "text-embedding-004")
 
 creds = Credentials.from_service_account_file(
     "service_account.json",
@@ -102,12 +106,9 @@ def classify_feature_error(text: str, feature_labels=None, error_labels=None) ->
         "Keep each label <= 3 words. If unsure, make your best inference (do not return Unknown)." + constraint + "\n\nText:\n" + text
     )
     try:
-        resp = client.chat.completions.create(
-            model=CHAT_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-        )
-        content = resp.choices[0].message.content.strip()
+        model = genai.GenerativeModel(CHAT_MODEL)
+        resp = model.generate_content(prompt)
+        content = (resp.text or "").strip()
         import json as _json
         m = _re.search(r"\{[\s\S]*\}", content)
         if m:
@@ -232,8 +233,11 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
     df_month["normalized"] = df_month["combined"].apply(normalize_text)
 
     def get_embedding(text: str):
-        res = client.embeddings.create(input=text, model="text-embedding-3-small")
-        return res.data[0].embedding
+        try:
+            res = genai.embed_content(model=EMBED_MODEL, content=text)
+            return res.get("embedding") or res.get("data", {}).get("embedding") or []
+        except Exception:
+            return []
 
     if len(df_month) < 2:
         df_month["embedding"] = [np.zeros((1,)) for _ in range(len(df_month))]
@@ -261,8 +265,9 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
         ---
         """
         try:
-            resp = client.chat.completions.create(model=CHAT_MODEL, messages=[{"role": "user", "content": prompt}], temperature=0.2)
-            root_cause = resp.choices[0].message.content.strip()
+            model = genai.GenerativeModel(CHAT_MODEL)
+            resp = model.generate_content(prompt)
+            root_cause = (resp.text or "").strip()
         except Exception as e:
             root_cause = f"Summary unavailable: {e}"
 
@@ -272,12 +277,9 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
                 "From this summary, extract a concise 5–10 word crux capturing the main failure and cause. "
                 "Return only the phrase.\n\n" + root_cause
             )
-            crux_resp = client.chat.completions.create(
-                model=CHAT_MODEL,
-                messages=[{"role": "user", "content": crux_prompt}],
-                temperature=0,
-            )
-            crux = crux_resp.choices[0].message.content.strip()
+            model = genai.GenerativeModel(CHAT_MODEL)
+            crux_resp = model.generate_content(crux_prompt)
+            crux = (crux_resp.text or "").strip()
         except Exception:
             crux = "Concise crux not available"
 

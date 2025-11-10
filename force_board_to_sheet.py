@@ -8,7 +8,7 @@ import requests
 from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
 import gspread
-from openai import OpenAI
+import google.generativeai as genai
 from sklearn.metrics.pairwise import cosine_similarity
 import re
 
@@ -28,7 +28,7 @@ def normalize_text(text: str) -> str:
     return t
 
 
-def classify_feature_error(client: OpenAI, model: str, text: str, feature_labels: List[str] = None, error_labels: List[str] = None) -> Dict[str, str]:
+def classify_feature_error(model_name: str, text: str, feature_labels: List[str] = None, error_labels: List[str] = None) -> Dict[str, str]:
     constraint = ""
     if feature_labels:
         constraint += f"\nFeature choices: {', '.join(feature_labels)}"
@@ -40,12 +40,12 @@ def classify_feature_error(client: OpenAI, model: str, text: str, feature_labels
         "Error type should be the failure class (e.g., Auth, Mapping, Validation, Timeout, Missing-Config, API-Error, Performance). "
         "Keep each label <= 3 words. If unsure, make your best inference (do not return Unknown)." + constraint + "\n\nText:\n" + text
     )
-    resp = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0,
-    )
-    content = resp.choices[0].message.content.strip()
+    try:
+        model = genai.GenerativeModel(model_name)
+        resp = model.generate_content(prompt)
+        content = (resp.text or "").strip()
+    except Exception:
+        content = ""
     import json as _json, re as _re
     m = _re.search(r"\{[\s\S]*\}", content)
     if m:
@@ -156,10 +156,11 @@ def main() -> None:
         df["error_type"] = df["error_type"].apply(coerce_field)
 
     # Embeddings and clustering
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    embed_model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-large")
-    chat_model = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
-    classify_model = os.getenv("OPENAI_CLASSIFY_MODEL", chat_model)
+    # Configure Gemini
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    embed_model = os.getenv("GEMINI_EMBED_MODEL", "text-embedding-004")
+    chat_model = os.getenv("GEMINI_CHAT_MODEL", "gemini-1.5-flash")
+    classify_model = os.getenv("GEMINI_CLASSIFY_MODEL", chat_model)
     feature_vocab = [s.strip() for s in os.getenv("FEATURE_LABELS", "").split(",") if s.strip()]
     error_vocab = [s.strip() for s in os.getenv("ERROR_TYPE_LABELS", "").split(",") if s.strip()]
 
@@ -168,7 +169,7 @@ def main() -> None:
     ai_errors: List[str] = []
     for _, row in df.iterrows():
         text_full = (row.get("summary") or "") + "\n" + (row.get("description") or "")
-        labels = classify_feature_error(client, classify_model, text_full, feature_vocab or None, error_vocab or None)
+        labels = classify_feature_error(classify_model, text_full, feature_vocab or None, error_vocab or None)
         ai_features.append(labels["feature"])
         ai_errors.append(labels["error_type"])
     df["feature"] = ai_features
@@ -180,10 +181,14 @@ def main() -> None:
 
     texts = df["normalized"].astype(str).tolist()
     embeddings: List[List[float]] = []
-    for chunk in batched(texts, 64):
-        resp = client.embeddings.create(model=embed_model, input=chunk)
-        for item in resp.data:
-            embeddings.append(item.embedding)
+    for chunk in batched(texts, 32):
+        for t in chunk:
+            try:
+                res = genai.embed_content(model=embed_model, content=t)
+                emb = res.get("embedding") or res.get("data", {}).get("embedding")
+                embeddings.append(emb or [])
+            except Exception:
+                embeddings.append([])
     emb = np.array(embeddings, dtype=np.float32)
     sim = cosine_similarity(emb)
 
@@ -211,24 +216,21 @@ def main() -> None:
             "Use simple language (no hype). Provide 3–5 short sentences (<= 120 words) that cover: "
             "1) What failed and where, 2) symptoms and scope, 3) likely root cause, 4) one next action.\n\n" + text
         )
-        resp = client.chat.completions.create(
-            model=chat_model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-        )
-        summary = resp.choices[0].message.content.strip()
+        try:
+            model = genai.GenerativeModel(chat_model)
+            resp = model.generate_content(prompt)
+            summary = (resp.text or "").strip()
+        except Exception:
+            summary = "Summary unavailable"
         # Build concise crux (5–10 words)
         try:
             crux_prompt = (
                 "From this summary, extract a concise 5–10 word crux capturing the main failure and cause. "
                 "Return only the phrase.\n\n" + summary
             )
-            crux_resp = client.chat.completions.create(
-                model=chat_model,
-                messages=[{"role": "user", "content": crux_prompt}],
-                temperature=0,
-            )
-            crux = crux_resp.choices[0].message.content.strip()
+            model = genai.GenerativeModel(chat_model)
+            crux_resp = model.generate_content(crux_prompt)
+            crux = (crux_resp.text or "").strip()
         except Exception:
             crux = "Concise crux not available"
         # Plain text list of all example ids (no hyperlink)
