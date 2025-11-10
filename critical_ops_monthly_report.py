@@ -93,6 +93,40 @@ def normalize_text(text: str) -> str:
     t = _re.sub(r"\s+", " ", t).strip()
     return t
 
+def _make_gemini_model(model_name: str):
+    try:
+        from google.generativeai.types import HarmCategory, HarmBlockThreshold, SafetySetting
+        safety_settings = [
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=HarmBlockThreshold.BLOCK_NONE),
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=HarmBlockThreshold.BLOCK_NONE),
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_SEXUAL_CONTENT, threshold=HarmBlockThreshold.BLOCK_NONE),
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=HarmBlockThreshold.BLOCK_NONE),
+        ]
+    except Exception:
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUAL_CONTENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ]
+    generation_config = {"temperature": 0.2, "max_output_tokens": 256}
+    return genai.GenerativeModel(model_name, generation_config=generation_config, safety_settings=safety_settings)
+
+
+def _safe_generate_text(model_name: str, prompt: str) -> str:
+    try:
+        mdl = _make_gemini_model(model_name)
+        resp = mdl.generate_content(prompt)
+        txt = (getattr(resp, "text", None) or "").strip()
+        if txt:
+            return txt
+        # retry with neutral instruction
+        resp2 = mdl.generate_content("Provide a neutral, purely technical response.\n\n" + prompt)
+        return (getattr(resp2, "text", None) or "").strip()
+    except Exception:
+        return ""
+
+
 def classify_feature_error(text: str, feature_labels=None, error_labels=None) -> dict:
     constraint = ""
     if feature_labels:
@@ -106,9 +140,7 @@ def classify_feature_error(text: str, feature_labels=None, error_labels=None) ->
         "Keep each label <= 3 words. If unsure, make your best inference (do not return Unknown)." + constraint + "\n\nText:\n" + text
     )
     try:
-        model = genai.GenerativeModel(CHAT_MODEL)
-        resp = model.generate_content(prompt)
-        content = (resp.text or "").strip()
+        content = _safe_generate_text(CHAT_MODEL, prompt)
         import json as _json
         m = _re.search(r"\{[\s\S]*\}", content)
         if m:
@@ -235,7 +267,10 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
     def get_embedding(text: str):
         try:
             res = genai.embed_content(model=EMBED_MODEL, content=text)
-            return res.get("embedding") or res.get("data", {}).get("embedding") or []
+            emb = res.get("embedding") or (res.get("data", {}) or {}).get("embedding")
+            if isinstance(emb, dict) and "values" in emb:
+                emb = emb.get("values")
+            return emb or []
         except Exception:
             return []
 
@@ -265,9 +300,9 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
         ---
         """
         try:
-            model = genai.GenerativeModel(CHAT_MODEL)
-            resp = model.generate_content(prompt)
-            root_cause = (resp.text or "").strip()
+            root_cause = _safe_generate_text(CHAT_MODEL, prompt)
+            if not root_cause:
+                root_cause = "Summary unavailable"
         except Exception as e:
             root_cause = f"Summary unavailable: {e}"
 
@@ -277,9 +312,7 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
                 "From this summary, extract a concise 5–10 word crux capturing the main failure and cause. "
                 "Return only the phrase.\n\n" + root_cause
             )
-            model = genai.GenerativeModel(CHAT_MODEL)
-            crux_resp = model.generate_content(crux_prompt)
-            crux = (crux_resp.text or "").strip()
+            crux = _safe_generate_text(CHAT_MODEL, crux_prompt) or "Concise crux not available"
         except Exception:
             crux = "Concise crux not available"
 

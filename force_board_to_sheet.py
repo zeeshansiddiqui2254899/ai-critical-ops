@@ -11,6 +11,7 @@ import gspread
 import google.generativeai as genai
 from sklearn.metrics.pairwise import cosine_similarity
 import re
+from typing import Tuple
 
 
 def batched(lst: List[str], size: int) -> List[List[str]]:
@@ -28,6 +29,40 @@ def normalize_text(text: str) -> str:
     return t
 
 
+def _make_gemini_model(model_name: str):
+    try:
+        from google.generativeai.types import HarmCategory, HarmBlockThreshold, SafetySetting
+        safety_settings = [
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=HarmBlockThreshold.BLOCK_NONE),
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=HarmBlockThreshold.BLOCK_NONE),
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_SEXUAL_CONTENT, threshold=HarmBlockThreshold.BLOCK_NONE),
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=HarmBlockThreshold.BLOCK_NONE),
+        ]
+    except Exception:
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUAL_CONTENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ]
+    generation_config = {"temperature": 0.2, "max_output_tokens": 256}
+    return genai.GenerativeModel(model_name, generation_config=generation_config, safety_settings=safety_settings)
+
+
+def _safe_generate_text(model_name: str, prompt: str) -> Tuple[bool, str]:
+    try:
+        mdl = _make_gemini_model(model_name)
+        resp = mdl.generate_content(prompt)
+        txt = (getattr(resp, "text", None) or "").strip()
+        if txt:
+            return True, txt
+        resp2 = mdl.generate_content("Provide a neutral, purely technical response.\n\n" + prompt)
+        txt2 = (getattr(resp2, "text", None) or "").strip()
+        return (True, txt2) if txt2 else (False, "")
+    except Exception:
+        return False, ""
+
+
 def classify_feature_error(model_name: str, text: str, feature_labels: List[str] = None, error_labels: List[str] = None) -> Dict[str, str]:
     constraint = ""
     if feature_labels:
@@ -40,12 +75,7 @@ def classify_feature_error(model_name: str, text: str, feature_labels: List[str]
         "Error type should be the failure class (e.g., Auth, Mapping, Validation, Timeout, Missing-Config, API-Error, Performance). "
         "Keep each label <= 3 words. If unsure, make your best inference (do not return Unknown)." + constraint + "\n\nText:\n" + text
     )
-    try:
-        model = genai.GenerativeModel(model_name)
-        resp = model.generate_content(prompt)
-        content = (resp.text or "").strip()
-    except Exception:
-        content = ""
+    ok, content = _safe_generate_text(model_name, prompt)
     import json as _json, re as _re
     m = _re.search(r"\{[\s\S]*\}", content)
     if m:
@@ -185,7 +215,9 @@ def main() -> None:
         for t in chunk:
             try:
                 res = genai.embed_content(model=embed_model, content=t)
-                emb = res.get("embedding") or res.get("data", {}).get("embedding")
+                emb = res.get("embedding") or (res.get("data", {}) or {}).get("embedding")
+                if isinstance(emb, dict) and "values" in emb:
+                    emb = emb.get("values")
                 embeddings.append(emb or [])
             except Exception:
                 embeddings.append([])
@@ -216,11 +248,8 @@ def main() -> None:
             "Use simple language (no hype). Provide 3–5 short sentences (<= 120 words) that cover: "
             "1) What failed and where, 2) symptoms and scope, 3) likely root cause, 4) one next action.\n\n" + text
         )
-        try:
-            model = genai.GenerativeModel(chat_model)
-            resp = model.generate_content(prompt)
-            summary = (resp.text or "").strip()
-        except Exception:
+        ok, summary = _safe_generate_text(chat_model, prompt)
+        if not ok or not summary:
             summary = "Summary unavailable"
         # Build concise crux (5–10 words)
         try:
@@ -228,9 +257,8 @@ def main() -> None:
                 "From this summary, extract a concise 5–10 word crux capturing the main failure and cause. "
                 "Return only the phrase.\n\n" + summary
             )
-            model = genai.GenerativeModel(chat_model)
-            crux_resp = model.generate_content(crux_prompt)
-            crux = (crux_resp.text or "").strip()
+            ok2, crux = _safe_generate_text(chat_model, crux_prompt)
+            crux = crux if ok2 and crux else "Concise crux not available"
         except Exception:
             crux = "Concise crux not available"
         # Plain text list of all example ids (no hyperlink)

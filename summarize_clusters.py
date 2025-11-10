@@ -39,12 +39,30 @@ def main() -> None:
             f"Tickets:\n{joined_text}\n\nReturn exactly one concise sentence."
         )
 
-        try:
-            model = genai.GenerativeModel(chat_model)
-            response = model.generate_content(prompt)
-            summary = (response.text or "").strip()
-        except Exception:
-            summary = "Summary unavailable"
+    try:
+        from google.generativeai.types import HarmCategory, HarmBlockThreshold, SafetySetting
+        safety_settings = [
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=HarmBlockThreshold.BLOCK_NONE),
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=HarmBlockThreshold.BLOCK_NONE),
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_SEXUAL_CONTENT, threshold=HarmBlockThreshold.BLOCK_NONE),
+            SafetySetting(category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=HarmBlockThreshold.BLOCK_NONE),
+        ]
+    except Exception:
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUAL_CONTENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ]
+    try:
+        model = genai.GenerativeModel(chat_model, generation_config={"temperature": 0.2, "max_output_tokens": 200}, safety_settings=safety_settings)
+        response = model.generate_content(prompt)
+        summary = (getattr(response, "text", None) or "").strip()
+        if not summary:
+            response2 = model.generate_content("Provide a neutral, purely technical response.\n\n" + prompt)
+            summary = (getattr(response2, "text", None) or "").strip() or "Summary unavailable"
+    except Exception:
+        summary = "Summary unavailable"
         summaries.append({
             "cluster_id": cluster_id,
             "summary": summary,
