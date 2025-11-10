@@ -13,6 +13,7 @@ import google.generativeai as genai
 from sklearn.metrics.pairwise import cosine_similarity
 import re
 from typing import Tuple
+import re as _rx
 
 
 def get_env_int(name: str, default: int) -> int:
@@ -370,6 +371,17 @@ def classify_feature_error(model_name: str, text: str, feature_labels: List[str]
     # Limit text size to keep prompts reliable
     if isinstance(text, str) and len(text) > 15000:
         text = text[-15000:]
+    # Default vocab if not provided
+    default_features = [
+        "Finance", "GoodLeap", "LightReach", "Proposals", "Contracts", "Reports",
+        "Integrations", "Authentication", "UI", "Data Pipeline"
+    ]
+    default_errors = [
+        "Validation", "Mapping", "Timeout", "Missing-Config", "API-Error",
+        "Auth", "Performance", "Data-Quality"
+    ]
+    feature_labels = feature_labels or default_features
+    error_labels = error_labels or default_errors
     constraint = ""
     if feature_labels:
         constraint += f"\nFeature choices: {', '.join(feature_labels)}"
@@ -377,9 +389,12 @@ def classify_feature_error(model_name: str, text: str, feature_labels: List[str]
         constraint += f"\nError type choices: {', '.join(error_labels)}"
     prompt = (
         "You are labeling a Jira incident. Read the text and output JSON with keys 'feature' and 'error_type'. "
-        "Feature should be the module or integration touched (e.g., Finance, GoodLeap, LightReach, Proposals, Contracts). "
-        "Error type should be the failure class (e.g., Auth, Mapping, Validation, Timeout, Missing-Config, API-Error, Performance). "
-        "Keep each label <= 3 words. If unsure, make your best inference (do not return Unknown)." + constraint + "\n\nText:\n" + text
+        "Feature should be the most relevant product module/integration. "
+        "Error type should be the failure class. "
+        "Choose the best labels from the choices if possible, or infer a specific 1–3 word label (do NOT return General/Unknown).\n"
+        + f"Feature choices: {', '.join(feature_labels)}\n"
+        + f"Error type choices: {', '.join(error_labels)}\n\n"
+        "Return strictly JSON like {\"feature\":\"...\",\"error_type\":\"...\"}.\n\nText:\n" + text
     )
     ok, content = _safe_generate_text(model_name, prompt)
     # naive parse: try to extract JSON
@@ -390,11 +405,45 @@ def classify_feature_error(model_name: str, text: str, feature_labels: List[str]
             obj = json.loads(m.group(0))
             feature = str(obj.get("feature") or "").strip() or "General"
             error_type = str(obj.get("error_type") or "").strip() or "General"
-            return {"feature": feature, "error_type": error_type}
+            if feature.lower() != "general" or error_type.lower() != "general":
+                return {"feature": feature, "error_type": error_type}
         except Exception:
             pass
-    # fallback: return short extracted labels from free text
-    return {"feature": "General", "error_type": "General"}
+    # Heuristic fallback from text
+    t = (text or "").lower()
+    patterns_feature = [
+        ("GoodLeap", r"\bgood\s*leap\b|\bgoodleap\b"),
+        ("LightReach", r"\blightreach\b"),
+        ("Proposals", r"\bproposal|quot(e|ing)\b"),
+        ("Contracts", r"\bcontract(s)?\b"),
+        ("Finance", r"\bloan|credit|finance|funding\b"),
+        ("Reports", r"\breport\b"),
+        ("Integrations", r"\bwebhook|callback|integration|api\b"),
+        ("Authentication", r"\bauth(entication)?|oauth|token|login\b"),
+        ("UI", r"\bbutton|dropdown|screen|ui\b"),
+        ("Data Pipeline", r"\bpipeline|etl|ingest(ion)?\b"),
+    ]
+    patterns_error = [
+        ("Validation", r"\bvalidation|invalid|required|format|regex|parse\b"),
+        ("Mapping", r"\bmapping|map(ped|ping)?|transform\b"),
+        ("Timeout", r"\btime[ -]?out|timed out\b"),
+        ("Missing-Config", r"\bconfig(uration)? missing|missing config|env var|secret\b"),
+        ("API-Error", r"\bhttp\s*(4|5)\d{2}|bad gateway|gateway|service unavailable|rate limit|429\b"),
+        ("Auth", r"\bauth(entication)?|unauthorized|forbidden|expired token|login\b"),
+        ("Performance", r"\blatenc(y|ies)|slow|sluggish\b"),
+        ("Data-Quality", r"\bdata (mismatch|inconsisten|stale|quality)\b"),
+    ]
+    feat = "General"
+    err = "General"
+    for label, pat in patterns_feature:
+        if _rx.search(pat, t):
+            feat = label
+            break
+    for label, pat in patterns_error:
+        if _rx.search(pat, t):
+            err = label
+            break
+    return {"feature": feat, "error_type": err}
 
 
 def main() -> None:

@@ -82,6 +82,7 @@ def coerce_option(v):
 
 # Normalize and classify helpers
 import re as _re
+import re as _rx
 
 def normalize_text(text: str) -> str:
     if not isinstance(text, str):
@@ -152,16 +153,16 @@ def _safe_generate_text(model_name: str, prompt: str) -> str:
 
 
 def classify_feature_error(text: str, feature_labels=None, error_labels=None) -> dict:
-    constraint = ""
-    if feature_labels:
-        constraint += f"\nFeature choices: {', '.join(feature_labels)}"
-    if error_labels:
-        constraint += f"\nError type choices: {', '.join(error_labels)}"
+    # default choices
+    feature_labels = feature_labels or ["Finance","GoodLeap","LightReach","Proposals","Contracts","Reports","Integrations","Authentication","UI","Data Pipeline"]
+    error_labels = error_labels or ["Validation","Mapping","Timeout","Missing-Config","API-Error","Auth","Performance","Data-Quality"]
+    constraint = f"\nFeature choices: {', '.join(feature_labels)}\nError type choices: {', '.join(error_labels)}"
     prompt = (
         "You are labeling a Jira incident. Read the text and output JSON with keys 'feature' and 'error_type'. "
-        "Feature is the module/integration (e.g., Finance, GoodLeap, LightReach, Proposals, Contracts). "
-        "Error type is the failure class (e.g., Auth, Mapping, Validation, Timeout, Missing-Config, API-Error, Performance). "
-        "Keep each label <= 3 words. If unsure, make your best inference (do not return Unknown)." + constraint + "\n\nText:\n" + text
+        "Feature is the most relevant module/integration. Error type is the failure class. "
+        "Choose from the choices when possible, or infer a specific 1–3 word label. Do NOT return General/Unknown. "
+        "Return strictly JSON like {\"feature\":\"...\",\"error_type\":\"...\"}."
+        + constraint + "\n\nText:\n" + text
     )
     try:
         content = _safe_generate_text(CHAT_MODEL, prompt)
@@ -171,10 +172,45 @@ def classify_feature_error(text: str, feature_labels=None, error_labels=None) ->
             obj = _json.loads(m.group(0))
             feature = str(obj.get("feature") or "").strip() or "General"
             error_type = str(obj.get("error_type") or "").strip() or "General"
-            return {"feature": feature, "error_type": error_type}
+            if feature.lower() != "general" or error_type.lower() != "general":
+                return {"feature": feature, "error_type": error_type}
     except Exception:
         pass
-    return {"feature": "General", "error_type": "General"}
+    # Heuristic fallback
+    t = (text or "").lower()
+    patterns_feature = [
+        ("GoodLeap", r"\bgood\s*leap\b|\bgoodleap\b"),
+        ("LightReach", r"\blightreach\b"),
+        ("Proposals", r"\bproposal|quot(e|ing)\b"),
+        ("Contracts", r"\bcontract(s)?\b"),
+        ("Finance", r"\bloan|credit|finance|funding\b"),
+        ("Reports", r"\breport\b"),
+        ("Integrations", r"\bwebhook|callback|integration|api\b"),
+        ("Authentication", r"\bauth(entication)?|oauth|token|login\b"),
+        ("UI", r"\bbutton|dropdown|screen|ui\b"),
+        ("Data Pipeline", r"\bpipeline|etl|ingest(ion)?\b"),
+    ]
+    patterns_error = [
+        ("Validation", r"\bvalidation|invalid|required|format|regex|parse\b"),
+        ("Mapping", r"\bmapping|map(ped|ping)?|transform\b"),
+        ("Timeout", r"\btime[ -]?out|timed out\b"),
+        ("Missing-Config", r"\bconfig(uration)? missing|missing config|env var|secret\b"),
+        ("API-Error", r"\bhttp\s*(4|5)\d{2}|bad gateway|gateway|service unavailable|rate limit|429\b"),
+        ("Auth", r"\bauth(entication)?|unauthorized|forbidden|expired token|login\b"),
+        ("Performance", r"\blatenc(y|ies)|slow|sluggish\b"),
+        ("Data-Quality", r"\bdata (mismatch|inconsisten|stale|quality)\b"),
+    ]
+    feat = "General"
+    err = "General"
+    for label, pat in patterns_feature:
+        if _rx.search(pat, t):
+            feat = label
+            break
+    for label, pat in patterns_error:
+        if _rx.search(pat, t):
+            err = label
+            break
+    return {"feature": feat, "error_type": err}
 
 # -----------------------------
 # 3️⃣  Fetch Jira Issues (last 15 days) via Agile board (reliable)
