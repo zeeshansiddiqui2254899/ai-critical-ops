@@ -55,12 +55,34 @@ def main() -> None:
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
         ]
     try:
+        def _extract_text(resp_obj) -> str:
+            txt = (getattr(resp_obj, "text", None) or "").strip()
+            if txt:
+                return txt
+            try:
+                cands = getattr(resp_obj, "candidates", []) or []
+                for cand in cands:
+                    content = getattr(cand, "content", None)
+                    parts = getattr(content, "parts", None)
+                    if parts:
+                        collected = []
+                        for p in parts:
+                            t = getattr(p, "text", None)
+                            if not t and isinstance(p, dict):
+                                t = p.get("text")
+                            if t:
+                                collected.append(t)
+                        if collected:
+                            return "\n".join(collected).strip()
+            except Exception:
+                pass
+            return ""
         model = genai.GenerativeModel(chat_model, generation_config={"temperature": 0.2, "max_output_tokens": 200}, safety_settings=safety_settings)
-        response = model.generate_content(prompt)
-        summary = (getattr(response, "text", None) or "").strip()
+        response = model.generate_content(prompt if len(prompt) <= 20000 else prompt[-20000:])
+        summary = _extract_text(response)
         if not summary:
-            response2 = model.generate_content("Provide a neutral, purely technical response.\n\n" + prompt)
-            summary = (getattr(response2, "text", None) or "").strip() or "Summary unavailable"
+            response2 = model.generate_content("Provide a neutral, purely technical response.\n\n" + (prompt[-20000:] if len(prompt) > 20000 else prompt))
+            summary = _extract_text(response2) or "Summary unavailable"
     except Exception:
         summary = "Summary unavailable"
         summaries.append({

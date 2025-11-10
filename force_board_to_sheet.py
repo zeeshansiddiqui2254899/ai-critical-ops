@@ -50,14 +50,38 @@ def _make_gemini_model(model_name: str):
 
 
 def _safe_generate_text(model_name: str, prompt: str) -> Tuple[bool, str]:
+    def _extract_text(resp_obj) -> str:
+        txt = (getattr(resp_obj, "text", None) or "").strip()
+        if txt:
+            return txt
+        try:
+            cands = getattr(resp_obj, "candidates", []) or []
+            for cand in cands:
+                content = getattr(cand, "content", None)
+                parts = getattr(content, "parts", None)
+                if parts:
+                    collected = []
+                    for p in parts:
+                        t = getattr(p, "text", None)
+                        if not t and isinstance(p, dict):
+                            t = p.get("text")
+                        if t:
+                            collected.append(t)
+                    if collected:
+                        return "\n".join(collected).strip()
+        except Exception:
+            pass
+        return ""
+    if isinstance(prompt, str) and len(prompt) > 20000:
+        prompt = prompt[-20000:]
     try:
         mdl = _make_gemini_model(model_name)
         resp = mdl.generate_content(prompt)
-        txt = (getattr(resp, "text", None) or "").strip()
+        txt = _extract_text(resp)
         if txt:
             return True, txt
         resp2 = mdl.generate_content("Provide a neutral, purely technical response.\n\n" + prompt)
-        txt2 = (getattr(resp2, "text", None) or "").strip()
+        txt2 = _extract_text(resp2)
         return (True, txt2) if txt2 else (False, "")
     except Exception:
         return False, ""
