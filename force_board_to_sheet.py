@@ -13,6 +13,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import re
 from typing import Tuple
 import re as _rx
+from kb_store import upsert_kb, retrieve_context_for_text
 
 
 def batched(lst: List[str], size: int) -> List[List[str]]:
@@ -272,6 +273,15 @@ def main() -> None:
     df["normalized"] = df["combined"].apply(normalize_text)
 
     texts = df["normalized"].astype(str).tolist()
+
+    # Upsert to local KB
+    try:
+        use_kb = os.getenv("USE_KB_CONTEXT", "1") == "1"
+        if use_kb:
+            items = [(str(r["id"]), str(r["combined"])) for _, r in df.assign(combined=df["summary"].fillna("") + "\n" + df["description"].fillna("")).iterrows()]
+            upsert_kb(items, embed_model)
+    except Exception:
+        use_kb = False
     embeddings: List[List[float]] = []
     for chunk in batched(texts, 32):
         for t in chunk:
@@ -305,10 +315,18 @@ def main() -> None:
     now = datetime.datetime.now().strftime("%Y-%m-%d")
     for cid, group in df.groupby("cluster_id"):
         text = "\n".join(group["combined"].astype(str).tolist())
+        kb_ctx = ""
+        if use_kb:
+            try:
+                kb_ctx = retrieve_context_for_text(text, top_k=5, max_chars=3500, embed_model=embed_model)
+            except Exception:
+                kb_ctx = ""
         prompt = (
             "Write a clear, non-superlative explanation for a product manager. "
             "Use simple language (no hype). Provide 3–5 short sentences (<= 120 words) that cover: "
-            "1) What failed and where, 2) symptoms and scope, 3) likely root cause, 4) one next action.\n\n" + text
+            "1) What failed and where, 2) symptoms and scope, 3) likely root cause, 4) one next action.\n\n"
+            + ("Relevant similar tickets:\n" + kb_ctx + "\n\n" if kb_ctx else "")
+            + text
         )
         ok, summary = _safe_generate_text(chat_model, prompt)
         if not ok or not summary:

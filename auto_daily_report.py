@@ -14,6 +14,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import re
 from typing import Tuple
 import re as _rx
+from kb_store import upsert_kb, retrieve_context_for_text
 
 
 def get_env_int(name: str, default: int) -> int:
@@ -569,12 +570,31 @@ def main() -> None:
     df["combined"] = df["summary"] + "\n" + df["description"]
     df["normalized"] = df["combined"].apply(normalize_text)
 
+    # Upsert to local KB for context-aware prompts
+    try:
+        use_kb = os.getenv("USE_KB_CONTEXT", "1") == "1"
+        if use_kb:
+            items = [(str(r["id"]), str(r["combined"])) for _, r in df.iterrows()]
+            upsert_kb(items, embed_model)
+    except Exception:
+        pass
+
     # Step 2: AI classification (per-issue)
     ai_features: List[str] = []
     ai_errors: List[str] = []
     for _, row in df.iterrows():
         text_full = (row.get("summary") or "") + "\n" + (row.get("description") or "")
-        labels = classify_feature_error(classify_model, text_full, feature_vocab or None, error_vocab or None)
+        kb_ctx = ""
+        if use_kb:
+            try:
+                kb_ctx = retrieve_context_for_text(text_full, top_k=3, max_chars=3000, embed_model=embed_model)
+            except Exception:
+                kb_ctx = ""
+        if kb_ctx:
+            text_for_classify = text_full + "\n\nSimilar tickets context:\n" + kb_ctx
+        else:
+            text_for_classify = text_full
+        labels = classify_feature_error(classify_model, text_for_classify, feature_vocab or None, error_vocab or None)
         ai_features.append(labels["feature"])
         ai_errors.append(labels["error_type"])
     df["feature"] = ai_features
@@ -622,10 +642,18 @@ def main() -> None:
     now = datetime.datetime.now().strftime("%Y-%m-%d")
     for cid, group in df.groupby("cluster_id"):
         text = "\n".join(group["combined"].astype(str).tolist())
+        kb_ctx = ""
+        if use_kb:
+            try:
+                kb_ctx = retrieve_context_for_text(text, top_k=5, max_chars=3500, embed_model=embed_model)
+            except Exception:
+                kb_ctx = ""
         prompt = (
             "Write a clear, non-superlative explanation for a product manager. "
             "Use simple language (no hype). Provide 3–5 short sentences (<= 120 words) that cover: "
-            "1) What failed and where, 2) symptoms and scope, 3) likely root cause, 4) one next action.\n\n" + text
+            "1) What failed and where, 2) symptoms and scope, 3) likely root cause, 4) one next action.\n\n"
+            + ("Relevant similar tickets:\n" + kb_ctx + "\n\n" if kb_ctx else "")
+            + text
         )
         ok, summary = _safe_generate_text(chat_model, prompt)
         if not ok or not summary:

@@ -10,6 +10,7 @@ from sklearn.cluster import AgglomerativeClustering
 import gspread
 from google.oauth2.service_account import Credentials
 from dotenv import load_dotenv
+from kb_store import upsert_kb, retrieve_context_for_text
 
 # -----------------------------
 # 1️⃣  Load environment variables
@@ -283,6 +284,14 @@ if not data:
 df_all = pd.DataFrame(data)
 df_all["completion_date"] = pd.to_datetime(df_all["completion_date"], errors="coerce", utc=True)
 
+# Upsert full-month data into KB to build global context
+try:
+    genai  # ensure configured
+    items_all = [(str(r["id"]), f"{r.get('summary','')}\n{r.get('description','')}") for _, r in df_all.iterrows()]
+    upsert_kb(items_all, EMBED_MODEL)
+except Exception:
+    pass
+
 def month_bounds(dt_utc: pd.Timestamp):
     start = pd.Timestamp(dt_utc.year, dt_utc.month, 1, tz="UTC")
     if dt_utc.month == 12:
@@ -311,12 +320,18 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
         df_month["error_type"].fillna("")
     )
 
-    # AI feature/error_type classification per ticket (override if Unknown)
+    # AI feature/error_type classification per ticket (context-aware)
     ai_feats = []
     ai_errs = []
     for _, row in df_month.iterrows():
         text_full = (row.get("summary") or "") + "\n" + (row.get("description") or "")
-        labels = classify_feature_error(text_full)
+        kb_ctx = ""
+        try:
+            kb_ctx = retrieve_context_for_text(text_full, top_k=3, max_chars=3000, embed_model=EMBED_MODEL)
+        except Exception:
+            kb_ctx = ""
+        text_for_classify = text_full + ("\n\nSimilar tickets context:\n" + kb_ctx if kb_ctx else "")
+        labels = classify_feature_error(text_for_classify)
         ai_feats.append(labels["feature"]) 
         ai_errs.append(labels["error_type"]) 
     df_month["feature"] = ai_feats
@@ -349,12 +364,17 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
     summaries = []
     for cid, group in df_month.groupby("cluster_id"):
         text = "\n".join(group["combined"].tolist())
+        kb_ctx = ""
+        try:
+            kb_ctx = retrieve_context_for_text(text, top_k=5, max_chars=3500, embed_model=EMBED_MODEL)
+        except Exception:
+            kb_ctx = ""
         prompt = f"""Write a clear, non-superlative explanation for a product manager.
         Use simple language (no hype). Provide 3–5 short sentences (<= 120 words) that cover:
         1) What failed and where (system/vendor/module),
         2) Observable symptoms and scope (who/how many were affected),
         3) Likely root cause, and
-        4) One recommended next action or prevention step.
+        4) One recommended next action or prevention step.{("\\nRelevant similar tickets:\\n" + kb_ctx) if kb_ctx else ""}
         ---
         {text}
         ---
