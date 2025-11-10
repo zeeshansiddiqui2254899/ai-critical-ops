@@ -5,6 +5,7 @@ import numpy as np
 from jira import JIRA
 import requests
 import google.generativeai as genai
+from openai import OpenAI as OpenAIClient
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import AgglomerativeClustering
 import gspread
@@ -26,12 +27,20 @@ SHEET_ID = os.getenv("SHEET_ID")
 # 2️⃣  Connect to APIs
 # -----------------------------
 jira = JIRA(server=JIRA_BASE_URL, basic_auth=(JIRA_EMAIL, JIRA_API_TOKEN))
-if not GEMINI_API_KEY:
-    raise SystemExit("Missing GEMINI_API_KEY environment variable")
-genai.configure(api_key=GEMINI_API_KEY)
-jira = JIRA(server=JIRA_BASE_URL, basic_auth=(JIRA_EMAIL, JIRA_API_TOKEN))
-CHAT_MODEL = os.getenv("GEMINI_CHAT_MODEL", "gemini-1.5-flash")
-EMBED_MODEL = os.getenv("GEMINI_EMBED_MODEL", "text-embedding-004")
+provider = os.getenv("AI_PROVIDER", "gemini").lower()
+if provider == "openai":
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if not openai_key:
+        raise SystemExit("AI_PROVIDER=openai but OPENAI_API_KEY missing")
+    openai_client = OpenAIClient(api_key=openai_key)
+    CHAT_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+    EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
+else:
+    if not GEMINI_API_KEY:
+        raise SystemExit("Missing GEMINI_API_KEY environment variable")
+    genai.configure(api_key=GEMINI_API_KEY)
+    CHAT_MODEL = os.getenv("GEMINI_CHAT_MODEL", "gemini-1.5-flash")
+    EMBED_MODEL = os.getenv("GEMINI_EMBED_MODEL", "text-embedding-004")
 
 creds = Credentials.from_service_account_file(
     "service_account.json",
@@ -116,6 +125,26 @@ def _make_gemini_model(model_name: str):
 
 
 def _safe_generate_text(model_name: str, prompt: str) -> str:
+    provider = os.getenv("AI_PROVIDER", "gemini").lower()
+    if provider == "openai":
+        try:
+            client = OpenAIClient(api_key=os.getenv("OPENAI_API_KEY"))
+            resp = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+            )
+            txt = (resp.choices[0].message.content or "").strip()
+            if txt:
+                return txt
+            resp2 = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": "Provide a neutral, purely technical response.\n\n" + prompt}],
+                temperature=0.1,
+            )
+            return (resp2.choices[0].message.content or "").strip()
+        except Exception:
+            return ""
     def _extract_text(resp_obj) -> str:
         txt = (getattr(resp_obj, "text", None) or "").strip()
         if txt:
@@ -340,7 +369,11 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
     df_month["normalized"] = df_month["combined"].apply(normalize_text)
 
     def get_embedding(text: str):
+        provider = os.getenv("AI_PROVIDER", "gemini").lower()
         try:
+            if provider == "openai":
+                resp = openai_client.embeddings.create(model=EMBED_MODEL, input=[text])
+                return (resp.data[0].embedding if resp and resp.data else []) or []
             res = genai.embed_content(model=EMBED_MODEL, content=text)
             emb = res.get("embedding") or (res.get("data", {}) or {}).get("embedding")
             if isinstance(emb, dict) and "values" in emb:

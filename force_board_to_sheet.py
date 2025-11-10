@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
 import gspread
 import google.generativeai as genai
+from openai import OpenAI as OpenAIClient
 from sklearn.metrics.pairwise import cosine_similarity
 import re
 from typing import Tuple
@@ -249,11 +250,21 @@ def main() -> None:
         df["error_type"] = df["error_type"].apply(coerce_field)
 
     # Embeddings and clustering
-    # Configure Gemini
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    embed_model = os.getenv("GEMINI_EMBED_MODEL", "text-embedding-004")
-    chat_model = os.getenv("GEMINI_CHAT_MODEL", "gemini-1.5-flash")
-    classify_model = os.getenv("GEMINI_CLASSIFY_MODEL", chat_model)
+    # Configure provider
+    provider = os.getenv("AI_PROVIDER", "gemini").lower()
+    if provider == "openai":
+        openai_key = os.getenv("OPENAI_API_KEY")
+        if not openai_key:
+            raise SystemExit("AI_PROVIDER=openai but OPENAI_API_KEY missing")
+        openai_client = OpenAIClient(api_key=openai_key)
+        embed_model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
+        chat_model = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+        classify_model = os.getenv("OPENAI_CLASSIFY_MODEL", chat_model)
+    else:
+        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        embed_model = os.getenv("GEMINI_EMBED_MODEL", "text-embedding-004")
+        chat_model = os.getenv("GEMINI_CHAT_MODEL", "gemini-1.5-flash")
+        classify_model = os.getenv("GEMINI_CLASSIFY_MODEL", chat_model)
     feature_vocab = [s.strip() for s in os.getenv("FEATURE_LABELS", "").split(",") if s.strip()]
     error_vocab = [s.strip() for s in os.getenv("ERROR_TYPE_LABELS", "").split(",") if s.strip()]
 
@@ -283,16 +294,26 @@ def main() -> None:
     except Exception:
         use_kb = False
     embeddings: List[List[float]] = []
-    for chunk in batched(texts, 32):
-        for t in chunk:
+    if provider == "openai":
+        for chunk in batched(texts, 64):
             try:
-                res = genai.embed_content(model=embed_model, content=t)
-                emb = res.get("embedding") or (res.get("data", {}) or {}).get("embedding")
-                if isinstance(emb, dict) and "values" in emb:
-                    emb = emb.get("values")
-                embeddings.append(emb or [])
+                resp = openai_client.embeddings.create(model=embed_model, input=chunk)
+                for item in resp.data:
+                    embeddings.append(item.embedding)
             except Exception:
-                embeddings.append([])
+                for _ in chunk:
+                    embeddings.append([])
+    else:
+        for chunk in batched(texts, 32):
+            for t in chunk:
+                try:
+                    res = genai.embed_content(model=embed_model, content=t)
+                    emb = res.get("embedding") or (res.get("data", {}) or {}).get("embedding")
+                    if isinstance(emb, dict) and "values" in emb:
+                        emb = emb.get("values")
+                    embeddings.append(emb or [])
+                except Exception:
+                    embeddings.append([])
     emb = np.array(embeddings, dtype=np.float32)
     sim = cosine_similarity(emb)
 

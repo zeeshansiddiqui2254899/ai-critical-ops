@@ -3,6 +3,7 @@ import json
 from typing import List, Dict, Tuple
 import numpy as np
 import google.generativeai as genai
+from openai import OpenAI as OpenAIClient
 
 # Simple local knowledge base stored as JSONL with embeddings
 KB_PATH = os.getenv("KB_INDEX_PATH", "kb_index.jsonl")
@@ -33,7 +34,13 @@ def _save_kb(items: List[Dict]) -> None:
 
 
 def _ensure_embedding(text: str, embed_model: str) -> List[float]:
+    provider = os.getenv("AI_PROVIDER", "gemini").lower()
     try:
+        if provider == "openai":
+            client = OpenAIClient(api_key=os.getenv("OPENAI_API_KEY"))
+            resp = client.embeddings.create(model=embed_model, input=[text or ""])
+            return (resp.data[0].embedding if resp and resp.data else []) or []
+        # default gemini
         res = genai.embed_content(model=embed_model, content=text or "")
         emb = res.get("embedding") or (res.get("data", {}) or {}).get("embedding")
         if isinstance(emb, dict) and "values" in emb:

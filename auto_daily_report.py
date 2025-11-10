@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
 import gspread
 import google.generativeai as genai
+from openai import OpenAI as OpenAIClient
 from sklearn.metrics.pairwise import cosine_similarity
 import re
 from typing import Tuple
@@ -325,7 +326,29 @@ def _make_gemini_model(model_name: str):
 
 
 def _safe_generate_text(model_name: str, prompt: str) -> Tuple[bool, str]:
-    """Call Gemini and return (ok, text). Retries with simplified prompt if blocked/empty."""
+    """Call provider model and return (ok, text). Retries with simplified prompt if blocked/empty."""
+    provider = os.getenv("AI_PROVIDER", "gemini").lower()
+    if provider == "openai":
+        try:
+            client = OpenAIClient(api_key=os.getenv("OPENAI_API_KEY"))
+            resp = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+            )
+            txt = (resp.choices[0].message.content or "").strip()
+            if txt:
+                return True, txt
+            # Retry simplified
+            resp2 = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": "Provide a neutral, purely technical summary without opinions.\n\n" + prompt}],
+                temperature=0.1,
+            )
+            txt2 = (resp2.choices[0].message.content or "").strip()
+            return (True, txt2) if txt2 else (False, "")
+        except Exception:
+            return False, ""
     def _extract_text(resp_obj) -> str:
         txt = (getattr(resp_obj, "text", None) or "").strip()
         if txt:
@@ -456,18 +479,30 @@ def main() -> None:
     jira_api_token = os.getenv("JIRA_API_TOKEN")
     sheet_id = os.getenv("SHEET_ID")
 
-    if not (gemini_api_key and jira_base_url and jira_email and jira_api_token and sheet_id):
-        raise SystemExit("Missing required env: GEMINI_API_KEY, JIRA_BASE_URL/JIRA_HOST, JIRA_EMAIL, JIRA_API_TOKEN, SHEET_ID")
+    if not (jira_base_url and jira_email and jira_api_token and sheet_id):
+        raise SystemExit("Missing required env: JIRA_BASE_URL/JIRA_HOST, JIRA_EMAIL, JIRA_API_TOKEN, SHEET_ID")
 
     # Accept either key or name from JIRA_PROJECT; fallback to legacy var
     project_input = os.getenv("JIRA_PROJECT") or os.getenv("CRITICAL_OPS_BOARD_NAME", "Critical Ops")
     days = get_env_int("JIRA_LOOKBACK_DAYS", 1)
 
-    # Configure Gemini
-    genai.configure(api_key=gemini_api_key)
-    embed_model = os.getenv("GEMINI_EMBED_MODEL", "text-embedding-004")
-    chat_model = os.getenv("GEMINI_CHAT_MODEL", "gemini-1.5-flash")
-    classify_model = os.getenv("GEMINI_CLASSIFY_MODEL", chat_model)
+    # Configure provider
+    provider = os.getenv("AI_PROVIDER", "gemini").lower()
+    if provider == "openai":
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        if not openai_api_key:
+            raise SystemExit("AI_PROVIDER=openai but OPENAI_API_KEY missing")
+        openai_client = OpenAIClient(api_key=openai_api_key)
+        embed_model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
+        chat_model = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+        classify_model = os.getenv("OPENAI_CLASSIFY_MODEL", chat_model)
+    else:
+        if not gemini_api_key:
+            raise SystemExit("GEMINI_API_KEY missing (AI_PROVIDER=gemini)")
+        genai.configure(api_key=gemini_api_key)
+        embed_model = os.getenv("GEMINI_EMBED_MODEL", "text-embedding-004")
+        chat_model = os.getenv("GEMINI_CHAT_MODEL", "gemini-1.5-flash")
+        classify_model = os.getenv("GEMINI_CLASSIFY_MODEL", chat_model)
     # Optional fixed vocabularies (comma-separated)
     feature_vocab = [s.strip() for s in os.getenv("FEATURE_LABELS", "").split(",") if s.strip()]
     error_vocab = [s.strip() for s in os.getenv("ERROR_TYPE_LABELS", "").split(",") if s.strip()]
@@ -603,19 +638,29 @@ def main() -> None:
     # Step 3: Embeddings (batched)
     texts = df["normalized"].astype(str).tolist()
     embeddings: List[List[float]] = []
-    for chunk in batched(texts, 32):
-        for t in chunk:
+    if provider == "openai":
+        for chunk in batched(texts, 64):
             try:
-                res = genai.embed_content(model=embed_model, content=t)
-                emb = res.get("embedding") or (res.get("data", {}) or {}).get("embedding")
-                # Some versions return {'embedding': {'values': [...]}}
-                if isinstance(emb, dict) and "values" in emb:
-                    emb = emb.get("values")
-                if emb is None:
-                    emb = []
-                embeddings.append(emb)
+                resp = openai_client.embeddings.create(model=embed_model, input=chunk)
+                for item in resp.data:
+                    embeddings.append(item.embedding)
             except Exception:
-                embeddings.append([])
+                for _ in chunk:
+                    embeddings.append([])
+    else:
+        for chunk in batched(texts, 32):
+            for t in chunk:
+                try:
+                    res = genai.embed_content(model=embed_model, content=t)
+                    emb = res.get("embedding") or (res.get("data", {}) or {}).get("embedding")
+                    # Some versions return {'embedding': {'values': [...]}}
+                    if isinstance(emb, dict) and "values" in emb:
+                        emb = emb.get("values")
+                    if emb is None:
+                        emb = []
+                    embeddings.append(emb)
+                except Exception:
+                    embeddings.append([])
 
     emb_matrix = np.array(embeddings, dtype=np.float32)
     sim = cosine_similarity(emb_matrix)
