@@ -35,7 +35,7 @@ jobs:
           JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
-          MONTHS_HISTORY: 5
+          MONTHS_HISTORY: 1
         run: python critical_ops_monthly_report.py
 
 
