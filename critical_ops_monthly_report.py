@@ -373,20 +373,20 @@ def write_month(tab_name: str, df_month: pd.DataFrame):
         try:
             if provider == "openai":
                 resp = openai_client.embeddings.create(model=EMBED_MODEL, input=[text])
-            emb = (resp.data[0].embedding if resp and resp.data else []) or []
-            if not emb:
-                # fallback to zero vector
-                dim = 3072 if "text-embedding-3-large" in (EMBED_MODEL or "").lower() else 1536
-                return [0.0] * dim
-            return emb
-            res = genai.embed_content(model=EMBED_MODEL, content=text)
-            emb = res.get("embedding") or (res.get("data", {}) or {}).get("embedding")
-            if isinstance(emb, dict) and "values" in emb:
-                emb = emb.get("values")
-        return emb or [0.0]
+                emb = (resp.data[0].embedding if resp and resp.data else []) or []
+                if not emb:
+                    dim = 3072 if "text-embedding-3-large" in (EMBED_MODEL or "").lower() else 1536
+                    return [0.0] * dim
+                return emb
+            else:
+                res = genai.embed_content(model=EMBED_MODEL, content=text)
+                emb = res.get("embedding") or (res.get("data", {}) or {}).get("embedding")
+                if isinstance(emb, dict) and "values" in emb:
+                    emb = emb.get("values")
+                return emb or [0.0]
         except Exception:
-        dim = 3072 if "text-embedding-3-large" in (EMBED_MODEL or "").lower() else 1536
-        return [0.0] * dim
+            dim = 3072 if "text-embedding-3-large" in (EMBED_MODEL or "").lower() else 1536
+            return [0.0] * dim
 
     if len(df_month) < 2:
         df_month["embedding"] = [np.zeros((1,)) for _ in range(len(df_month))]
