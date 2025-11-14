@@ -12,7 +12,40 @@ import gspread
 from openai import OpenAI
 from sklearn.metrics.pairwise import cosine_similarity
 import re
-
+AI_PROVIDER = (os.getenv("AI_PROVIDER") or "").strip().lower()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_CHAT_MODEL = os.getenv("GEMINI_CHAT_MODEL", "gemini-1.5-flash")
+GEMINI_EMBED_MODEL = os.getenv("GEMINI_EMBED_MODEL", "text-embedding-004")
+_HAS_GENAI = False
+if AI_PROVIDER == "gemini" or GEMINI_API_KEY:
+    try:
+        import google.generativeai as genai  # type: ignore
+        genai.configure(api_key=GEMINI_API_KEY)
+        _HAS_GENAI = True
+    except Exception:
+        _HAS_GENAI = False
+def _pick_gemini_chat_model(default_name: str) -> str:
+    chat_name = default_name
+    try:
+        models = list(getattr(genai, "list_models", lambda: [])())
+        names = [getattr(m, "name", "") for m in models]
+        # Prefer 2.5 family if available
+        preferred = [
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "models/gemini-2.5-pro",
+            "models/gemini-2.5-flash",
+        ]
+        for cand in preferred:
+            if cand in names:
+                return cand
+        # Fallback to any 2.5
+        for n in names:
+            if "gemini-2.5" in n:
+                return n
+    except Exception:
+        pass
+    return chat_name
 
 def get_env_int(name: str, default: int) -> int:
     v = os.getenv(name)
@@ -301,6 +334,9 @@ def coerce_text(value: Any) -> str:
 
 
 def classify_feature_error(client: OpenAI, model: str, text: str, feature_labels: List[str] = None, error_labels: List[str] = None) -> Dict[str, str]:
+    # Truncate to control token/cost
+    if text and len(text) > 4000:
+        text = text[:4000]
     constraint = ""
     if feature_labels:
         constraint += f"\nFeature choices: {', '.join(feature_labels)}"
@@ -312,12 +348,22 @@ def classify_feature_error(client: OpenAI, model: str, text: str, feature_labels
         "Error type should be the failure class (e.g., Auth, Mapping, Validation, Timeout, Missing-Config, API-Error, Performance). "
         "Keep each label <= 3 words. If unsure, make your best inference (do not return Unknown)." + constraint + "\n\nText:\n" + text
     )
-    resp = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0,
-    )
-    content = resp.choices[0].message.content.strip()
+    try:
+        if AI_PROVIDER == "gemini" and _HAS_GENAI:
+            model_obj = genai.GenerativeModel(_pick_gemini_chat_model(GEMINI_CHAT_MODEL))
+            r = model_obj.generate_content(prompt)
+            content = (getattr(r, "text", "") or "").strip()
+        else:
+            resp = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0,
+                max_tokens=120,
+                response_format={"type": "json_object"},
+            )
+            content = (resp.choices[0].message.content or "").strip()
+    except Exception:
+        return {"feature": "General", "error_type": "General"}
     # naive parse: try to extract JSON
     import json, re as _re
     m = _re.search(r"\{[\s\S]*\}", content)
@@ -332,6 +378,26 @@ def classify_feature_error(client: OpenAI, model: str, text: str, feature_labels
     # fallback: return short extracted labels from free text
     return {"feature": "General", "error_type": "General"}
 
+def _sanitize_text_for_crux(s: str) -> str:
+    """Remove noise and imperative phrasing; return up to ~10 informative tokens."""
+    if not isinstance(s, str):
+        s = str(s or "")
+    t = s.lower()
+    # strip hex-like ids, ticket ids, urls, emails
+    t = re.sub(r"\b0x[0-9a-f]+\b", " ", t)
+    t = re.sub(r"\b[a-z]{2,}\-\d+\b", " ", t)
+    t = re.sub(r"https?://\S+|www\.\S+", " ", t)
+    t = re.sub(r"[\w\.-]+@[\w\.-]+", " ", t)
+    stop = {
+        "you","can","please","should","could","would","may","might","we","our","let's",
+        "ensure","make","fix","address","issue","issues","problem","problems","error","errors",
+        "need","needs","needed","note","notes","thanks","thank","info","information"
+    }
+    toks = [w for w in re.findall(r"[a-z0-9\-]+", t) if w and w not in stop]
+    if not toks:
+        return "concise crux not available"
+    return " ".join(toks[:10])
+
 
 def main() -> None:
     load_dotenv()
@@ -342,15 +408,19 @@ def main() -> None:
     jira_api_token = os.getenv("JIRA_API_TOKEN")
     sheet_id = os.getenv("SHEET_ID")
 
-    if not (openai_api_key and jira_base_url and jira_email and jira_api_token and sheet_id):
+    has_ai_key = bool(openai_api_key)
+    if not (has_ai_key and jira_base_url and jira_email and jira_api_token and sheet_id):
         raise SystemExit("Missing required env: OPENAI_API_KEY, JIRA_BASE_URL/JIRA_HOST, JIRA_EMAIL, JIRA_API_TOKEN, SHEET_ID")
 
     # Accept either key or name from JIRA_PROJECT; fallback to legacy var
     project_input = os.getenv("JIRA_PROJECT") or os.getenv("CRITICAL_OPS_BOARD_NAME", "Critical Ops")
     days = get_env_int("JIRA_LOOKBACK_DAYS", 1)
 
-    client = OpenAI(api_key=openai_api_key)
-    embed_model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-large")
+    base_url = os.getenv("OPENAI_BASE_URL")
+    client = None
+    if openai_api_key:
+        client = OpenAI(api_key=openai_api_key, base_url=base_url) if base_url else OpenAI(api_key=openai_api_key)
+    embed_model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
     chat_model = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
     classify_model = os.getenv("OPENAI_CLASSIFY_MODEL", chat_model)
     # Optional fixed vocabularies (comma-separated)
@@ -362,8 +432,35 @@ def main() -> None:
         "service_account.json",
         scopes=["https://www.googleapis.com/auth/spreadsheets"],
     )
+    try:
+        import json as _json
+        with open("service_account.json", "r") as _f:
+            _sa = _json.load(_f) or {}
+            _email = _sa.get("client_email", "")
+            print(f"Using Google service account: {_email}")
+    except Exception:
+        pass
     gc = gspread.authorize(creds)
-    sheet = gc.open_by_key(sheet_id).sheet1
+    sh = gc.open_by_key(sheet_id)
+    try:
+        print(f"Using OpenAI models: chat={chat_model}, embed={embed_model}")
+    except Exception:
+        pass
+    # Find or create the "last 15 days" worksheet (case/space-insensitive)
+    def _normalize_title(t: str) -> str:
+        return re.sub(r"\s+", "", (t or "").strip().lower())
+    target_title = "last 15 days"
+    worksheet = None
+    try:
+        for w in sh.worksheets():
+            if _normalize_title(w.title) == _normalize_title(target_title):
+                worksheet = w
+                break
+    except Exception:
+        worksheet = None
+    if worksheet is None:
+        worksheet = sh.add_worksheet(title=target_title, rows="1000", cols="20")
+    sheet = worksheet
 
     # Step 1: Fetch Jira
     issues = fetch_jira_issues_last_days(
@@ -394,7 +491,7 @@ def main() -> None:
                         resp = requests.get(
                             issues_url,
                             params={
-                                "jql": f"created >= -{days}d ORDER BY created DESC",
+                                "jql": f"updated >= -{days}d ORDER BY updated DESC",
                                 "startAt": start_at,
                                 "maxResults": batch,
                                 "fields": "summary,description,created,updated,customfield_10015,customfield_10016",
@@ -462,12 +559,44 @@ def main() -> None:
     texts = df["normalized"].astype(str).tolist()
     embeddings: List[List[float]] = []
     for chunk in batched(texts, 64):
-        resp = client.embeddings.create(model=embed_model, input=chunk)
-        for item in resp.data:
-            embeddings.append(item.embedding)
+        try:
+            if AI_PROVIDER == "gemini" and _HAS_GENAI:
+                for _t in chunk:
+                    try:
+                        er = genai.embed_content(model=GEMINI_EMBED_MODEL, content=_t)
+                        vec = None
+                        if isinstance(er, dict):
+                            vec = (er.get("embedding") or {}).get("values")
+                        else:
+                            emb = getattr(er, "embedding", None)
+                            vec = getattr(emb, "values", None) if emb is not None else None
+                        embeddings.append(vec or [0.0])
+                    except Exception:
+                        embeddings.append([0.0])
+            else:
+                if client is not None:
+                    resp = client.embeddings.create(model=embed_model, input=chunk)
+                    for item in resp.data:
+                        embeddings.append(item.embedding)
+                else:
+                    raise RuntimeError("No remote embedding provider available")
+        except Exception:
+            # Local TF-IDF fallback (better than all-zero vectors)
+            try:
+                from sklearn.feature_extraction.text import TfidfVectorizer
+                tfidf = TfidfVectorizer(max_features=1024)
+                tfidf_matrix = tfidf.fit_transform(texts)
+                embeddings = tfidf_matrix.astype("float32").toarray().tolist()
+                break  # computed all at once
+            except Exception:
+                embeddings.extend([[0.0] for _ in chunk])
 
     emb_matrix = np.array(embeddings, dtype=np.float32)
-    sim = cosine_similarity(emb_matrix)
+    # If embeddings are constant/zero, avoid collapsing everything into one cluster
+    if emb_matrix.size == 0 or np.allclose(emb_matrix, emb_matrix[0]):
+        sim = np.eye(len(texts), dtype=np.float32)
+    else:
+        sim = cosine_similarity(emb_matrix)
 
     # Step 4: Clustering by threshold
     threshold = float(os.getenv("SIMILARITY_THRESHOLD", "0.78"))
@@ -491,32 +620,72 @@ def main() -> None:
     now = datetime.datetime.now().strftime("%Y-%m-%d")
     for cid, group in df.groupby("cluster_id"):
         text = "\n".join(group["combined"].astype(str).tolist())
+        # Truncate context to control token/cost
+        if len(text) > 8000:
+            text = text[:8000]
         prompt = (
-            "Write a clear, non-superlative explanation for a product manager. "
-            "Use simple language (no hype). Provide 3–5 short sentences (<= 120 words) that cover: "
-            "1) What failed and where, 2) symptoms and scope, 3) likely root cause, 4) one next action.\n\n" + text
+            "You are a senior incident analyst. Write a clear, neutral, third‑person summary (no direct address). "
+            "Do NOT say 'you', 'we', or 'can'. Avoid filler/marketing. "
+            "Provide 5–7 concise sentences (120–180 words) covering: "
+            "1) what failed and where, 2) symptoms and scope (who/how many), "
+            "3) likely root cause, 4) one recommended next action.\n\n"
+            f"Context:\n{text}"
         )
-        resp = client.chat.completions.create(
-            model=chat_model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-        )
-        summary = resp.choices[0].message.content.strip()
+        try:
+            if AI_PROVIDER == "gemini" and _HAS_GENAI:
+                model_obj = genai.GenerativeModel(_pick_gemini_chat_model(GEMINI_CHAT_MODEL))
+                gen_cfg = {"temperature": 0.2, "max_output_tokens": 300}
+                r = model_obj.generate_content(prompt, generation_config=gen_cfg)
+                summary = (getattr(r, "text", "") or "").strip()
+            else:
+                resp = client.chat.completions.create(
+                    model=chat_model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.2,
+                    max_tokens=300,
+                )
+                summary = resp.choices[0].message.content.strip()
+        except Exception:
+            summary = ""
+        if not summary:
+            # Deterministic backup if LLM unavailable
+            sample = " ".join(group["summary"].astype(str).tolist()[:3])
+            summary = f"Grouped similar incidents. Representative notes: {sample[:240]}..."
 
         # Concise 5–10 word crux for the cluster
         try:
             crux_prompt = (
-                "From this summary, extract a concise 5–10 word crux capturing the main failure and cause. "
-                "Return only the phrase.\n\n" + summary
+                "From the summary below, output ONLY a 5–10 word noun phrase capturing the core failure/root cause. "
+                "No punctuation except hyphens. No verbs like 'fix', 'use', 'can'. No second‑person words.\n\n"
+                f"{summary}"
             )
-            crux_resp = client.chat.completions.create(
-                model=chat_model,
-                messages=[{"role": "user", "content": crux_prompt}],
-                temperature=0,
-            )
-            crux = crux_resp.choices[0].message.content.strip()
+            if AI_PROVIDER == "gemini" and _HAS_GENAI:
+                model_obj = genai.GenerativeModel(_pick_gemini_chat_model(GEMINI_CHAT_MODEL))
+                gen_cfg = {"temperature": 0.0, "max_output_tokens": 32}
+                rr = model_obj.generate_content(crux_prompt, generation_config=gen_cfg)
+                crux = (getattr(rr, "text", "") or "").strip()
+            else:
+                crux_resp = client.chat.completions.create(
+                    model=chat_model,
+                    messages=[{"role": "user", "content": crux_prompt}],
+                    temperature=0,
+                    max_tokens=32,
+                )
+                crux = crux_resp.choices[0].message.content.strip()
         except Exception:
-            crux = "Concise crux not available"
+            crux = ""
+        crux = _sanitize_text_for_crux(crux)
+        if crux == "concise crux not available" or not crux.strip():
+            # Simple TF-IDF keyphrase fallback
+            try:
+                from sklearn.feature_extraction.text import TfidfVectorizer
+                sample_texts = group["combined"].astype(str).tolist()
+                vec = TfidfVectorizer(max_features=8, ngram_range=(1, 2), stop_words="english")
+                X = vec.fit_transform(sample_texts)
+                terms = vec.get_feature_names_out()
+                crux = _sanitize_text_for_crux(" ".join(list(terms)[:6]))
+            except Exception:
+                crux = "Concise crux not available"
 
         # Plain text list of all example ids (no hyperlink)
         example_link = ", ".join([str(x) for x in group["id"].astype(str).tolist()])
