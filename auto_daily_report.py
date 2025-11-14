@@ -618,6 +618,21 @@ def main() -> None:
     # Step 5: Summaries
     rows: List[Dict[str, Any]] = []
     now = datetime.datetime.now().strftime("%Y-%m-%d")
+    # Export per-ticket clusters for downstream summarization
+    try:
+        export_cols = ["cluster_id"]
+        for col in ["id", "summary", "description"]:
+            if col in df.columns:
+                export_cols.append(col)
+        if "combined" in df.columns:
+            export_cols.append("combined")
+        else:
+            df["combined"] = (df.get("summary", "")).astype(str) + "\n" + (df.get("description", "")).astype(str)
+            export_cols.append("combined")
+        df[export_cols].to_csv("critical_ops_clusters.csv", index=False)
+        print(f"Saved critical_ops_clusters.csv with {len(df)} rows.")
+    except Exception as _e:
+        print(f"Warning: failed to export critical_ops_clusters.csv: {_e}")
     for cid, group in df.groupby("cluster_id"):
         text = "\n".join(group["combined"].astype(str).tolist())
         # Truncate context to control token/cost

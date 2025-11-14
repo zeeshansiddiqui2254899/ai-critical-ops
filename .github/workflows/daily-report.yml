@@ -33,6 +33,13 @@ jobs:
           SHEET_ID: ${{ secrets.SHEET_ID }}
         run: python auto_daily_report.py
 
+      - name: Summarize Patterns
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_CHAT_MODEL: gpt-4o-mini
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+        run: python summarize_clusters.py
+
       - name: Run Monthly Report (last 5 months)
         env:
           AI_PROVIDER: openai
