@@ -621,7 +621,7 @@ def main() -> None:
     # Export per-ticket clusters for downstream summarization
     try:
         export_cols = ["cluster_id"]
-        for col in ["id", "summary", "description"]:
+        for col in ["id", "summary", "description", "feature", "error_type", "created", "updated"]:
             if col in df.columns:
                 export_cols.append(col)
         if "combined" in df.columns:
