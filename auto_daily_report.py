@@ -78,6 +78,23 @@ def discover_project_key(base_url: str, email: str, token: str, name: str) -> Op
     return None
 
 
+def resolve_field_id_by_name(base_url: str, email: str, token: str, display_name: str) -> str:
+    """Resolve Jira field ID by display name (case-insensitive)."""
+    try:
+        fields_url = base_url.rstrip("/") + "/rest/api/3/field"
+        resp = requests.get(fields_url, headers={"Accept": "application/json"}, auth=(email, token))
+        if resp.status_code == 200:
+            fields = resp.json() or []
+            target = display_name.strip().lower()
+            for f in fields:
+                name = (f.get("name") or "").strip().lower()
+                if name == target:
+                    return f.get("id", "")
+    except Exception:
+        pass
+    return ""
+
+
 def fetch_jira_issues_last_days(
     base_url: str,
     email: str,
@@ -95,6 +112,9 @@ def fetch_jira_issues_last_days(
     # Use fixed custom field IDs
     feature_field_id = "customfield_10015"
     error_field_id = "customfield_10016"
+    # Resolve "Change completion date" field ID
+    completion_field_name = "Change completion date"
+    completion_field_id = resolve_field_id_by_name(base_url, email, token, completion_field_name)
 
     # 1) Try Jira Python library (REST v3)
     try:
@@ -103,6 +123,8 @@ def fetch_jira_issues_last_days(
         issues = jira_client.search_issues(jql, maxResults=max_results)
         for issue in issues:
             fields = issue.fields
+            completion_date = getattr(fields, completion_field_id, None) if completion_field_id else None
+            completion_date = completion_date or getattr(fields, "updated", "")
             records.append(
                 {
                     "id": issue.key,
@@ -112,6 +134,7 @@ def fetch_jira_issues_last_days(
                     "error_type": getattr(fields, error_field_id, "Unknown"),
                     "created": getattr(fields, "created", ""),
                     "updated": getattr(fields, "updated", ""),
+                    "completion_date": completion_date,
                 }
             )
     except Exception:
@@ -131,18 +154,21 @@ def fetch_jira_issues_last_days(
 
     while remaining > 0:
         batch_size = min(page_size, remaining)
+        fields_list = [
+            "summary",
+            "description",
+            "created",
+            "updated",
+            feature_field_id,
+            error_field_id,
+        ]
+        if completion_field_id:
+            fields_list.append(completion_field_id)
         body = {
             "jql": jql,
             "startAt": start_at,
             "maxResults": batch_size,
-            "fields": [
-                "summary",
-                "description",
-                "created",
-                "updated",
-                feature_field_id,
-                error_field_id,
-            ],
+            "fields": fields_list,
         }
         resp = requests.post(url, json=body, headers=headers, auth=auth)
         if resp.status_code != 200:
@@ -184,11 +210,14 @@ def fetch_jira_issues_last_days(
     remaining = max_results
     while remaining > 0:
         batch_size = min(100, remaining)
+        fields_str = f"summary,description,status,created,updated,{feature_field_id},{error_field_id}"
+        if completion_field_id:
+            fields_str += f",{completion_field_id}"
         params = {
             "jql": jql,
             "startAt": start_at,
             "maxResults": batch_size,
-            "fields": f"summary,description,status,created,updated,{feature_field_id},{error_field_id}",
+            "fields": fields_str,
         }
         resp = requests.get(url_get, params=params, headers=headers, auth=auth)
         if resp.status_code != 200:
@@ -200,6 +229,8 @@ def fetch_jira_issues_last_days(
         for issue in issues:
             key = issue.get("key", "")
             fields = issue.get("fields", {}) or {}
+            completion_date = fields.get(completion_field_id) if completion_field_id else None
+            completion_date = completion_date or fields.get("updated", "")
             records.append(
                 {
                     "id": key,
@@ -210,6 +241,7 @@ def fetch_jira_issues_last_days(
                     "status": (fields.get("status", {}) or {}).get("name", "Unknown") if isinstance(fields.get("status"), dict) else (fields.get("status") or "Unknown"),
                     "created": fields.get("created", ""),
                     "updated": fields.get("updated", ""),
+                    "completion_date": completion_date,
                 }
             )
         fetched = len(issues)
@@ -242,11 +274,14 @@ def fetch_jira_issues_last_days(
                 while remaining > 0:
                     batch_size = min(50, remaining)
                     issues_url = base_url.rstrip("/") + f"/rest/agile/1.0/board/{board_id}/issue"
+                    fields_str = f"summary,description,status,created,updated,{feature_field_id},{error_field_id}"
+                    if completion_field_id:
+                        fields_str += f",{completion_field_id}"
                     params = {
                         "jql": f"created >= -{days}d ORDER BY created DESC",
                         "startAt": start_at,
                         "maxResults": batch_size,
-                        "fields": f"summary,description,status,created,updated,{feature_field_id},{error_field_id}",
+                        "fields": fields_str,
                     }
                     resp = requests.get(issues_url, params=params, headers={"Accept": "application/json"}, auth=(email, token))
                     if resp.status_code != 200:
@@ -258,6 +293,8 @@ def fetch_jira_issues_last_days(
                     for issue in issues:
                         key = issue.get("key", "")
                         fields = issue.get("fields", {}) or {}
+                        completion_date = fields.get(completion_field_id) if completion_field_id else None
+                        completion_date = completion_date or fields.get("updated", "")
                         records.append(
                             {
                                 "id": key,
@@ -268,6 +305,7 @@ def fetch_jira_issues_last_days(
                                 "status": (fields.get("status", {}) or {}).get("name", "Unknown") if isinstance(fields.get("status"), dict) else (fields.get("status") or "Unknown"),
                                 "created": fields.get("created", ""),
                                 "updated": fields.get("updated", ""),
+                                "completion_date": completion_date,
                             }
                         )
                     fetched = len(issues)
@@ -470,6 +508,8 @@ def main() -> None:
     if not issues:
         # Final inline fallback via Agile API
         resolved_key = discover_project_key(jira_base_url, jira_email, jira_api_token, project_input) or project_input
+        completion_field_name = "Change completion date"
+        completion_field_id = resolve_field_id_by_name(jira_base_url, jira_email, jira_api_token, completion_field_name)
         try:
             boards_url = jira_base_url.rstrip("/") + "/rest/agile/1.0/board"
             r = requests.get(
@@ -486,6 +526,9 @@ def main() -> None:
                     agg = []
                     start_at = 0
                     remaining = 200
+                    fields_str = "summary,description,created,updated,customfield_10015,customfield_10016"
+                    if completion_field_id:
+                        fields_str += f",{completion_field_id}"
                     while remaining > 0:
                         batch = min(50, remaining)
                         resp = requests.get(
@@ -494,7 +537,7 @@ def main() -> None:
                                 "jql": f"updated >= -{days}d ORDER BY updated DESC",
                                 "startAt": start_at,
                                 "maxResults": batch,
-                                "fields": "summary,description,created,updated,customfield_10015,customfield_10016",
+                                "fields": fields_str,
                             },
                             headers={"Accept": "application/json"},
                             auth=(jira_email, jira_api_token),
@@ -507,6 +550,8 @@ def main() -> None:
                             break
                         for it in arr:
                             f = it.get("fields", {}) or {}
+                            completion_date = f.get(completion_field_id) if completion_field_id else None
+                            completion_date = completion_date or f.get("updated", "")
                             agg.append(
                                 {
                                     "id": it.get("key", ""),
@@ -516,6 +561,7 @@ def main() -> None:
                                     "error_type": f.get("customfield_10016", "Unknown"),
                                     "created": f.get("created", ""),
                                     "updated": f.get("updated", ""),
+                                    "completion_date": completion_date,
                                 }
                             )
                         got = len(arr)
@@ -705,10 +751,17 @@ def main() -> None:
         # Plain text list of all example ids (no hyperlink)
         example_link = ", ".join([str(x) for x in group["id"].astype(str).tolist()])
 
-        # Earliest create date in the cluster (YYYY-MM-DD)
+        # Earliest change completion date in the cluster (YYYY-MM-DD)
+        # Use completion_date if available, otherwise fall back to created
         create_date_val = ""
         try:
-            if "created" in group.columns:
+            if "completion_date" in group.columns:
+                completion_ts = pd.to_datetime(group["completion_date"], errors="coerce", utc=True)
+                completion_ts = completion_ts.dropna()
+                if not completion_ts.empty:
+                    create_date_val = completion_ts.min().strftime("%Y-%m-%d")
+            elif "created" in group.columns:
+                # Fallback to created date if completion_date is not available
                 created_ts = pd.to_datetime(group["created"], errors="coerce", utc=True)
                 created_ts = created_ts.dropna()
                 if not created_ts.empty:
