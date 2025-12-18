@@ -117,14 +117,27 @@ def fetch_jira_issues_last_days(
     completion_field_id = resolve_field_id_by_name(base_url, email, token, completion_field_name)
 
     # 1) Try Jira Python library (REST v3)
+    # Note: Jira library may not support custom field access via getattr for field IDs
+    # So we'll try it but fall through to REST API methods which handle custom fields better
     try:
         options = {"server": base_url, "rest_api_version": "3"}
         jira_client = JIRA(options=options, basic_auth=(email, token))
         issues = jira_client.search_issues(jql, maxResults=max_results)
         for issue in issues:
             fields = issue.fields
-            completion_date = getattr(fields, completion_field_id, None) if completion_field_id else None
-            completion_date = completion_date or getattr(fields, "updated", "")
+            # Try to get completion_date - use getattr for custom field ID
+            # Note: getattr may not work for custom field IDs, so we also try _raw dict
+            completion_date = None
+            if completion_field_id:
+                try:
+                    completion_date = getattr(fields, completion_field_id, None)
+                    # If None or empty, try accessing via raw dict if available
+                    if (completion_date is None or completion_date == "") and hasattr(fields, '_raw'):
+                        raw_fields = getattr(fields, '_raw', {}).get('fields', {})
+                        completion_date = raw_fields.get(completion_field_id)
+                except Exception:
+                    pass
+            completion_date = completion_date or getattr(fields, "updated", "") or ""
             records.append(
                 {
                     "id": issue.key,
@@ -132,12 +145,13 @@ def fetch_jira_issues_last_days(
                     "description": getattr(fields, "description", "") or "",
                     "feature": getattr(fields, feature_field_id, "Unknown"),
                     "error_type": getattr(fields, error_field_id, "Unknown"),
-                    "created": getattr(fields, "created", ""),
-                    "updated": getattr(fields, "updated", ""),
+                    "created": getattr(fields, "created", "") or "",
+                    "updated": getattr(fields, "updated", "") or "",
                     "completion_date": completion_date,
                 }
             )
     except Exception:
+        # Fall through to REST API methods which handle custom fields better
         pass
 
     if records:
@@ -578,6 +592,12 @@ def main() -> None:
         return
 
     df = pd.DataFrame(issues)
+    # Ensure completion_date column exists (fallback to updated if missing)
+    if "completion_date" not in df.columns:
+        df["completion_date"] = df.get("updated", "")
+    elif df["completion_date"].isna().all() or (df["completion_date"] == "").all():
+        # If completion_date is all empty/NaN, use updated as fallback
+        df["completion_date"] = df.get("updated", "")
     # Ensure text fields are strings (Jira may return complex objects)
     if "summary" in df.columns:
         df["summary"] = df["summary"].apply(coerce_text).fillna("")
